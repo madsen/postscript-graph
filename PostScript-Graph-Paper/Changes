@@ -1,4 +1,11 @@
-Revision history for Perl extension PostScript::GraphPaper.
+Revision history for Perl extension PostScript::Graph::Paper.
+
+0.03  Fri Oct 11 13:01:26 GMT 2002
+	Namespace changed from PostScript::GraphPaper
+
+0.02  Mon Oct  7 09:02:52 GMT 2002
+	changed options: chart now gpaper
+	added subdivisions to init_bar
 
 0.01  Fri Sep 27 16:05:00 2002
 	- original version; created by h2xs 1.21 with options

@@ -1,5 +1,5 @@
-PostScript/GraphPaper version 0.01
-==================================
+PostScript::Graph::Paper version 0.03
+=====================================
 
 This module creates a blank graph grid and writes the result into a postscript
 file.  The graph paper has labelled axes, title and a key area as well as
@@ -35,7 +35,7 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  PostScript::File 0.04
+  PostScript::Graph::File
 
 COPYRIGHT AND LICENCE
 

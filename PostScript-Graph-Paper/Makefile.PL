@@ -1,9 +1,9 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME		=> 'PostScript::GraphPaper',
-    ABSTRACT_FROM	=> 'GraphPaper.pm',
+    NAME		=> 'PostScript::Graph::Paper',
+    ABSTRACT_FROM	=> 'Paper.pm',
     AUTHOR		=> 'Christopher Willmot <chris@willmot.org.uk>',
-    VERSION_FROM	=> 'GraphPaper.pm',
-    PREREQ_PM		=> { PostScript::File => 0.04 },
+    VERSION_FROM	=> 'Paper.pm',
+    PREREQ_PM		=> { PostScript::Graph::File => 0 },
 );

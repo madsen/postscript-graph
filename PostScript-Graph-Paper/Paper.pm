@@ -1,68 +1,203 @@
-package PostScript::GraphPaper;
+package PostScript::Graph::Paper;
 use strict;
 use warnings;
-use PostScript::File 0.04 qw(check_file array_as_string str);
+use PostScript::Graph::File qw(check_file array_as_string str);
 
-our $VERSION = "0.01";
+our $VERSION = '0.03';
 
-# Prototypes for mon-method functions
-sub color_as_array ($);
-
-#== Introduction =============================================================
+### Introduction #############################################################
 
 =head1 NAME
 
-PostScript::GraphPaper - prepare blank graph for a postscript file
+PostScript::Graph::Paper - prepare blank graph for a postscript file
 
 =head1 SYNOPSIS
 
+=head2 Simplest
+
 Let the module create its own postscript file:
  
-    use PostScript::GraphPaper;
+    use PostScript::Graph::Paper;
     
-    my $pg = new PostScript::GraphPaper( 
+    my $pg = new PostScript::Graph::Paper( 
 	    file => { landscape => 1 },
-	    chart => { title => "Blank grid" } );
+	    paper => { title => "Blank grid" } );
 		
     $pg->output("testfile");
 
+=head2 Typical
     
-Or add the chart to an existing postscript file:
+Add the chart to an existing postscript file:
  
-    use PostScript::GraphPaper;
-    use PostScript::File;
+    use PostScript::Graph::Paper;
+    use PostScript::Graph::File;
     
-    my $ps = new PostScript::File( 
-			left => 40,
-			right => 40,
-			top => 30,
-			bottom => 30,
+    my $ps = new PostScript::Graph::File( 
+			left      => 40,
+			right     => 40,
+			top       => 30,
+			bottom	  => 30,
 			landscape => 1,
-			errors => 1 );
+			errors    => 1 );
 	
-    new PostScript::GraphPaper(
+    new PostScript::Graph::Paper(
 	  file   => $ps,
-	  chart  => { title => 
+	  paper => { title => 
 			"Experimental results" },
-	  x_axis => { high => 10,
+	  x_axis => { high  => 10,
 		      title => 
 			"Control variable" },
-	  y_axis => { low => 23.6, 
-		      high => 24.95,
+	  y_axis => { low   => 23.6, 
+		      high  => 24.95,
 		      title => 
 			"Dependent variable" });
 		    
     $ps->output("testfile");
+
+Create a bar chart layout:
+
+    use PostScript::Graph::Paper;
+
+    new PostScript::Graph::Paper(
+	  paper  => { title => 
+			"Survey" },
+	  x_axis => { labels => [
+		"Men", "Women", 
+		"Boys", "Girls", ], },
+	  y_axis => { low  => 8, 
+		      high => 37, } );
+		    
+    $ps->output("testfile");
+
+=head2 All options
     
+    new PostScript::Graph::Paper(
+	file => $ps_file,
+	
+	paper => {
+	    bottom_edge	    => 30,
+	    top_edge	    => 30,
+	    left_edge	    => 30,
+	    right_edge	    => 30,
+	    spacing	    => 4,
+	    top_margin	    => 10,
+	    right_margin    => 10,
+	    key_width	    => 0,
+	    sub_divisions   => 4,
+	    dots_per_inch   => 600,
+	    font	    => 'Helvetica',
+	    font_color	    => 0,
+	    font_size	    => 10,
+	    heading	    => 'My Graph',
+	    heading_font    => 'Times-Bold',
+	    heading_font_color => 0.9,
+	    heading_font_size => 20,
+	    heading_height  => 30,
+	    background	    => [ 0.9, 0.95, 0.85 ],
+	    color	    => [ 0, 0, 0.7 ],
+	    heavy_color	    => [0, 0, 0.4],
+	    mid_color	    => [0.6, 0.6, 1],
+	    light_color	    => 0.8,
+	    heavy_width	    => 1,
+	    mid_width	    => 0.8,
+	    light_width	    => 0.25,
+	},
+
+	x_axis => {
+	    low		=> 74.25,
+	    high	=> 74.9,
+	    width	=> 200,
+	    height	=> 450,
+	    label_gap	=> 50,
+	    labels	=> [qw(this that other)],
+	    labels_req	=> 7,
+	    font	=> 'Helvetica',
+	    font_color	=> 0,
+	    font_size	=> 10,
+	    title	=> 'X axis',
+	    color	=> 0.5,
+	    heavy_color	=> [0, 0, 0.4],
+	    mid_color	=> [0.6, 0.6, 1],
+	    light_color => 0.8,
+	    heavy_width => 1,
+	    mid_width	=> 0.8,
+	    light_width => 0.25,
+	    mark_min	=> 2,
+	    mark_max	=> 8,
+	    smallest	=> 8,
+	    center	=> 1,
+	    offset	=> 1,
+	    rotate	=> 1,
+	},
+
+	y_axis => {
+	    # as x_axis
+	},
+    );
 
 =head1 DESCRIPTION
 
-This module creates an area of graph paper on a postscript page.  X and Y axes are labelled and there are
-facilities to add a title and key.  This is written to a PostScript::File object (automatically created if
-not supplied) which can then be output.  It is intended to be a static object - once the parameters are set there
-is little point in changing them - so all options are set in the contructor.
+This module is designed as a supporting part of the PostScript::Graph suite.  For top level modules that output
+something useful, see
+
+    PostScript::Graph::Bar
+    PostScript::Graph::Stock
+    PostScript::Graph::XY
+
+An area of graph paper is created on a postscript page.  X and Y axes are labelled and there are facilities to add
+a title and key.  This is written to a PostScript::Graph::File object (automatically created if not supplied)
+which can then be output.  It is intended to be a static object - once the parameters are set there is little
+point in changing them - so all options are set in the contructor.
    
 =head1 CONSTRUCTOR
+
+=cut
+
+sub new {
+    my $class = shift;
+    my $opt = {};
+    if (@_ == 1) {
+	$opt = $_[0];
+    } else {
+	%$opt = @_;
+    }
+   
+    my $o = {};
+    bless( $o, $class );
+    
+    # note or initialize PostScript::Graph::File object
+    if (ref($opt->{file}) eq "PostScript::Graph::File") {
+	$o->{ps} = $opt->{file};
+    } else {
+	my $fileopts = (defined $opt->{file}) ? $opt->{file} : {};
+	$fileopts->{left}   = 36 unless (defined $fileopts->{left});
+	$fileopts->{right}  = 36 unless (defined $fileopts->{right});
+	$fileopts->{top}    = 36 unless (defined $fileopts->{top});
+	$fileopts->{bottom} = 36 unless (defined $fileopts->{bottom});
+	$fileopts->{errors} = 1 unless (defined $fileopts->{errors});
+	$o->{ps} = new PostScript::Graph::File($fileopts);
+    }
+
+    $o->init_paper($opt);
+    $o->init_scale_options("x", $opt->{x_axis});
+    $o->init_scale_options("y", $opt->{y_axis});
+    
+    if (defined $o->{x}{labels}) {
+	$o->init_bars("x", $opt->{x_axis});
+    } else {
+	$o->init_scale("x", $opt->{x_axis});
+    }
+    if (defined $o->{y}{labels}) {
+	$o->init_bars("y", $opt->{y_axis});
+    } else {
+	$o->init_scale("y", $opt->{y_axis});
+    }
+    
+    $o->common_code_for_scales();
+    $o->draw_scales();
+    
+    return $o;
+}
 
 =head2 new( [options] )
 
@@ -82,8 +217,8 @@ return the string given and the option would be documented as C<axis_title>.
 
 Example 1
 
-    my $gp = new PostScript::GraphPaper(
-	    chart  => {
+    my $gp = new PostScript::Graph::Paper(
+	    paper  => {
 		title  => "Bar chart",
 		right_edge => 500,
 		key_width  => 100,
@@ -105,12 +240,12 @@ Example 1
 
 Example 2
     
-    my $gp = new PostScript::GraphPaper(
+    my $gp = new PostScript::Graph::Paper(
 	    file => {
 		landscape => 1,
 		errors => 1,
 	    },
-	    chart => {
+	    paper => {
 		font_color => 1,
 		heading_height => 0,
 		left_axis_font_size => 0,
@@ -133,60 +268,48 @@ Example 2
 
 =cut
 
-sub new {
-    my $class = shift;
-    my $opt = {};
-    if (@_ == 1) {
-	$opt = $_[0];
-    } else {
-	%$opt = @_;
-    }
-   
-    my $o = {};
-    bless( $o, $class );
-    
-    # note or initialize PostScript::File object
-    if (ref($opt->{file}) eq "PostScript::File") {
-	$o->{ps} = $opt->{file};
-    } else {
-	my $fileopts = (defined $opt->{file}) ? $opt->{file} : {};
-	$fileopts->{left}   = 36 unless (defined $fileopts->{left});
-	$fileopts->{right}  = 36 unless (defined $fileopts->{right});
-	$fileopts->{top}    = 36 unless (defined $fileopts->{top});
-	$fileopts->{bottom} = 36 unless (defined $fileopts->{bottom});
-	$fileopts->{errors} = 1 unless (defined $fileopts->{errors});
-	$o->{ps} = new PostScript::File($fileopts);
-    }
-
-    $o->init_chart($opt);
-    $o->init_scale_options("x", $opt->{x_axis});
-    $o->init_scale_options("y", $opt->{y_axis});
-    
-    if (defined $o->{x}{labels}) {
-	$o->init_bars("x", $opt->{x_axis});
-    } else {
-	$o->init_scale("x", $opt->{x_axis});
-    }
-    if (defined $o->{y}{labels}) {
-	$o->init_bars("y", $opt->{y_axis});
-    } else {
-	$o->init_scale("y", $opt->{y_axis});
-    }
-    
-    $o->common_code_for_scales();
-    $o->draw_scales();
-    
-    return $o;
+sub file { 
+    return shift()->{ps}; 
 }
 
-#== Chart options ============================================================
+=head2 PostScript Options
 
-# Internal method, intializing whole chart area
-#
-sub init_chart {
+The PostScript::Graph::File object which recieves the grid may either be an existing one or the module can create one for
+you.  Use C<file> to declare a pre-existing object, or C<file> to control how the new one is created.
+
+=head3 file
+
+This may be either a PostScript::Graph::File object or a options in hash key/value format.  If options are given, a new
+PostScript::Graph::File object is created.
+
+    Example 1
+
+    $psf = new PostScript::Graph::File();
+    
+    $pg  = new PostScript::Graph::Paper(
+		file => $psf );
+
+    Then $psf == $pg->file();
+
+    Example 2
+    
+    my $ch = new PostScript::Graph::Paper(
+		file => {
+		    landscape => 1,
+		    clipping => 1,
+		    clipcmd => "stroke",
+		    debug => 2,
+		    errors => 1,
+		} );
+
+=cut
+
+### Chart options ############################################################
+
+sub init_paper {
     my ($o, $opt) = @_;
-    $opt->{chart} = {} unless (defined $opt->{chart});
-    my $r = $opt->{chart};
+    $opt->{paper} = {} unless (defined $opt->{paper});
+    my $r = $opt->{paper};
     $o->{ch}{left} = 0;
     my $ch = $o->{ch};
 
@@ -203,6 +326,7 @@ sub init_chart {
     $ch->{dpi}      = defined($r->{dots_per_inch})          ? $r->{dots_per_inch}          : 300;
     
     $ch->{color}    = defined($r->{color})                  ? str($r->{color})             : 0.5;
+    $ch->{fgnd}     = defined($r->{outline})                ? str($r->{outline})           : 0;
     $ch->{bgnd}     = defined($r->{background})             ? str($r->{background})        : 1;
     $ch->{heavycol} = defined($r->{heavy_color})            ? str($r->{heavy_color})       : $ch->{color};
     $ch->{midcol}   = defined($r->{mid_color})              ? str($r->{mid_color})         : $ch->{color};
@@ -250,206 +374,171 @@ sub init_chart {
     $ch->{gx1}      = $ch->{xx1};
     $ch->{gy1}      = $ch->{hy0} - $ch->{tmargin} - $ch->{spc};
 } 
-
-=head2 PostScript Options
-
-The PostScript::File object which recieves the grid may either be an existing one or the module can create one for
-you.  Use C<file> to declare a pre-existing object, or C<file> to control how the new one is created.
-
-=head3 file
-
-This may be either a PostScript::File object or a options in hash key/value format.  If options are given, a new
-PostScript::File object is created.
-
-    Example 1
-
-    $psf = new PostScript::File();
-    
-    $pg  = new PostScript::GraphPaper(
-		file => $psf );
-
-    Then $psf == $pg->file();
-
-    Example 2
-    
-    my $ch = new PostScript::GraphPaper(
-		file => {
-		    landscape => 1,
-		    clipping => 1,
-		    clipcmd => "stroke",
-		    debug => 2,
-		    errors => 1,
-		} );
-
-=cut
-
-sub file { my $o = shift; return $o->{ps}; }
+# Internal method, intializing whole chart area
 
 =head2 Chart Options
 
-These are all set within a C<chart> option given to the constructor.  Remove the initial C<chart_> to get the
+These are all set within a C<paper> option given to the constructor.  Remove the initial C<paper_> to get the
 option name.  All values are in PostScript native units (72 = 1 inch).
 
     Example
 
-    $pg = new PostScript::GraphPaper(
-	    chart => {  right_edge  => 600, 
-			heavy_color => [0, 0, 0.8],
-			light_color => 0.6,
-			font        => "Courier",
+    $pg = new PostScript::Graph::Paper(
+	    paper => {  right_edge   => 600, 
+			heavy_color  => [0, 0, 0.8],
+			light_color  => 0.6,
+			font         => "Courier",
 			title_font_size => 14,
-			key_gap     => 20,
-			spacing	    => 4 } );
+			right_margin => 20,
+			spacing	     => 4 } );
 
-    $pg->chart_font() would return "Courier".
+    $pg->paper_font() would return "Courier".
 		    
-=head3 chart_bottom_edge
+=head3 paper_bottom_edge
 
 The bottom boundary of the whole chart area.
 
-=head3 chart_background
+=head3 paper_background
 
 Background color.
 
-=head3 chart_color
+=head3 paper_color
 
 Default colour for all grid lines.  All colours can be either a greyscale value or an array of RGB values.  All
 values vary from 0 = black to 1 = brightest.  (Default: 0.5)
 
     Example
 
-    chart => {	background  => [ 0.95, 0.95, 0.85 ],
+    paper => {	background  => [ 0.95, 0.95, 0.85 ],
 		color	    => [ 0, 0.2, 0.8 ],
 		light_color => 0.85 }
 
     Grid lines will be a blue shade on a beige background, 
     except the lightest lines which will be light grey.
 
-=head3 chart_dots_per_inch
+=head3 paper_dots_per_inch
 
 Marks are spaced at a multiple of this value.  If this does not match the physical output device, the appearance
 can be somewhat ragged.  (Default: 300)
 
-=head3 chart_font
+=head3 paper_font
 
 Default font for everything except titles.  (Default: "Helvetica")
 
-=head3 chart_font_color
+=head3 paper_font_color
 
 Default colour for all fonts.  (Default: 0)
 
-=head3 chart_font_size
+=head3 paper_font_size
 
 Default font size for everything except the title font.  (Default: 10)
 
-=head3 chart_heading
+=head3 paper_heading
 
 The title above the grid.  (Default: "")
 
-=head3 chart_heading_font
+=head3 paper_heading_font
 
 Font for the main heading above the graph.  (Default: "Helvetica-Bold")
 
-=head3 chart_heading_font_color
+=head3 paper_heading_font_color
 
 Colour for main heading.  (Defaults to C<font_color>)
 
-=head3 chart_heading_font_size
+=head3 paper_heading_font_size
 
 Size for main heading.  (Default: 12)
 
-=head3 chart_heading_height
+=head3 paper_heading_height
 
 Size of area above the graph holding the main title and the y axis title.  (Defaults to just enough space)
 
-=head3 chart_heavy_color
+=head3 paper_heavy_color
 
 The colour of the major, labelled, lines.  (Defaults to C<color>)
 
-=head3 chart_heavy_width
+=head3 paper_heavy_width
 
 Width of the labelled lines.  (Default: 0.75)
 
-=head3 chart_key_width
+=head3 paper_key_width
 
 Width of box at the right of the graph, allocated for the key.  If this is 0, no key box is drawn.  (Default: 0)
 
-The key is drawn by a seperate PostScript::GraphKey object.  This merely allocates space within the chart edges.
+The key is drawn by a seperate PostScript::Graph::Key object.  This merely allocates space within the chart edges.
 
-=head3 chart_left_edge
+=head3 paper_left_edge
 
-The left boundary of the whole chart area.
+The left boundary of the whole paper area.
 
-=head3 chart_light_color
+=head3 paper_light_color
 
 Colour of the minor, unlabelled, lines. (Defaults to C<color>)
 
-=head3 chart_light_width
+=head3 paper_light_width
 
 Width of the lightest lines.  (Default: 0.25)
 
-=head3 chart_mid_color
+=head3 paper_mid_color
 
 A scale of 10 will be divided into two lots of 5 seperated by a slightly heavier line at the 5 mark.  This is the
 'mid' line.  (Defaults to C<color>)
 
-=head3 chart_mid_width
+=head3 paper_mid_width
 
 Width of the mid-lines, see </mid_color>.  (Default: 0.75)
 
-=head3 chart_right_edge
+=head3 paper_right_edge
 
 The right boundary of the whole chart area.
 
-=head3 chart_right_margin
+=head3 paper_right_margin
 
 Space at the right hand side of the graph area, taken up by part of the last label.  (Default: 15)
 
-=head3 chart_spacing
+=head3 paper_spacing
 
 Increasing this value seperates out the various parts of the chart, like leading added to text.  (Default: 0)
 
-=head3 chart_top_edge
+=head3 paper_sub_divisons
+
+Used by PostScript::Graph::Bar to signal the number of series per label.  Not appropriate for anything else.
+
+=head3 paper_top_edge
 
 The top boundary of the whole chart area.
 
-=head3 chart_top_margin
+=head3 paper_top_margin
 
 Space above the graph area taken up by part of the topmost y label.  (Default: 5)
 
 =cut
 
-sub chart_left_edge            { shift()->{ch}{left}; }
-sub chart_bottom_edge          { shift()->{ch}{bottom}; }
-sub chart_right_edge           { shift()->{ch}{right}; }
-sub chart_top_edge             { shift()->{ch}{top}; }
-sub chart_right_margin         { shift()->{ch}{rmargin}; }
-sub chart_top_margin           { shift()->{ch}{tmargin}; }
-sub chart_spacing              { shift()->{ch}{spc}; }
-sub chart_dots_per_inch        { shift()->{ch}{dpi}; }
-
-sub chart_heading              { shift()->{ch}{title}; }
-sub chart_heading_height       { shift()->{ch}{head}; }
-sub chart_key_width            { shift()->{ch}{keyw}; }
-sub chart_key_height           { shift()->{ch}{keyh}; }
-sub chart_key_title            { shift()->{ch}{ktitle}; }
-
-sub chart_background           { color_as_array( shift()->{ch}{bgnd} ); }
-sub chart_color                { color_as_array( shift()->{ch}{color} ); }
-sub chart_heavy_color          { color_as_array( shift()->{ch}{heavycol} ); }
-sub chart_mid_color            { color_as_array( shift()->{ch}{midcol} ); }
-sub chart_light_color          { color_as_array( shift()->{ch}{lightcol} ); }
-sub chart_heavy_width          { shift()->{ch}{heavyw}; }
-sub chart_mid_width            { shift()->{ch}{midw}; }
-sub chart_light_width          { shift()->{ch}{lightw}; }
-
-sub chart_font                 { shift()->{ch}{font}; }
-sub chart_font_size            { shift()->{ch}{fontsize}; }
-sub chart_font_color           { color_as_array( shift()->{ch}{fontcol} ); }
-sub chart_heading_font         { shift()->{ch}{hfont}; }
-sub chart_heading_font_size    { shift()->{ch}{hsize}; }
-sub chart_heading_font_color   { color_as_array( shift()->{ch}{hcol} ); }
-
+sub paper_left_edge            { shift()->{ch}{left}; }
+sub paper_bottom_edge          { shift()->{ch}{bottom}; }
+sub paper_right_edge           { shift()->{ch}{right}; }
+sub paper_top_edge             { shift()->{ch}{top}; }
+sub paper_right_margin         { shift()->{ch}{rmargin}; }
+sub paper_top_margin           { shift()->{ch}{tmargin}; }
+sub paper_spacing              { shift()->{ch}{spc}; }
+sub paper_dots_per_inch        { shift()->{ch}{dpi}; }
+sub paper_heading              { shift()->{ch}{title}; }
+sub paper_heading_height       { shift()->{ch}{head}; }
+sub paper_key_width            { shift()->{ch}{keyw}; }
+sub paper_background           { color_as_array( shift()->{ch}{bgnd} ); }
+sub paper_color                { color_as_array( shift()->{ch}{color} ); }
+sub paper_heavy_color          { color_as_array( shift()->{ch}{heavycol} ); }
+sub paper_mid_color            { color_as_array( shift()->{ch}{midcol} ); }
+sub paper_light_color          { color_as_array( shift()->{ch}{lightcol} ); }
+sub paper_heavy_width          { shift()->{ch}{heavyw}; }
+sub paper_mid_width            { shift()->{ch}{midw}; }
+sub paper_light_width          { shift()->{ch}{lightw}; }
+sub paper_font                 { shift()->{ch}{font}; }
+sub paper_font_size            { shift()->{ch}{fontsize}; }
+sub paper_font_color           { color_as_array( shift()->{ch}{fontcol} ); }
+sub paper_heading_font         { shift()->{ch}{hfont}; }
+sub paper_heading_font_size    { shift()->{ch}{hsize}; }
+sub paper_heading_font_color   { color_as_array( shift()->{ch}{hcol} ); }
 sub color_as_array ($) {
     my $col = shift;
     my ($r, $g, $b) = ($col =~ /\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
@@ -457,10 +546,8 @@ sub color_as_array ($) {
     return $col;
 }
     
-#== Scale options ============================================================
+### Axis options #############################################################
 
-# Internal method, reading scale options
-#
 sub init_scale_options {
     my ($o, $axis, $r) = @_;
     $o->{$axis}{llo} = 0;
@@ -483,28 +570,51 @@ sub init_scale_options {
     } else {
 	die "init_scale(): axis not x or y\nStopped";
     }
+    if (defined $r->{labels}) {
+	if (($sc->{flags} & 4) == 4) {
+	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
+	} else {
+	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{bgnd};
+	}
+	$sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{bgnd};
+	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{bgnd};
+    } else {
+	$sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
+	$sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{midcol};
+	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{lightcol};
+    }
+    $sc->{heavyw}   = defined($r->{heavy_width}) ? str($r->{heavy_width}) : $ch->{heavyw};
+    $sc->{midw}     = defined($r->{mid_width})   ? $r->{mid_width}        : $ch->{midw};
+    $sc->{lightw}   = defined($r->{light_width}) ? $r->{light_width}      : $ch->{lightw};
+
 
 }
+# Internal method, reading scale options
 
-# Internal method, intializing one barchart axis
-#
 sub init_bars {
     my ($o, $axis, $r) = @_;
     my $sc = $o->{$axis};
     my $ch = $o->{ch};
     $r = {} unless (defined $r);
 
+    #print join(",", @{$sc->{labels}}) . "\n";
     my @labels;
     foreach my $label (@{$sc->{labels}}) {
 	push @labels, "($label)";
     }
-    #push @labels, "()" if ($axis eq "x");
+    unless ($labels[$#labels] eq "()") {
+	push @labels, "()";
+    }
     
-    $sc->{markmul} = 0;
-    $sc->{markgap} = ($sc->{phi} - $sc->{plo})/@labels;
-    $sc->{factors} = array_as_string( ($#labels) );
+    my $subdivs = defined($r->{sub_divisions}) ? $r->{sub_divisions} : 1;
+    $sc->{markmul} = 4;
+    $sc->{markgap} = ($sc->{phi} - $sc->{plo})/($#labels * $subdivs);
+    $sc->{markcen} = $subdivs > 1 ? $sc->{markgap} * ($subdivs-1) : $sc->{markgap};
+    my $n = ($sc->{flags} & 4) ? $#labels - 1 : $#labels; 
+    $sc->{factors} = array_as_string( ($n, $subdivs) );
     $sc->{labels}  = array_as_string(@labels);
     $sc->{ldepth}  = 0;
+    #print "$axis labels   = $sc->{labels}\n";
 
     $sc->{labsreq} = $#labels;
     $sc->{llo}     = 0;
@@ -517,11 +627,8 @@ sub init_bars {
     #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
 
 }
+# Internal method, intializing one barchart axis
 
-# Internal method, initializing one scale
-# expects either ("x", $opts{x_axis}) or ("y", $opts{y_axis})
-# $o->{ch}{...} must already exist
-# 
 sub init_scale {
     my ($o, $axis, $r) = @_;
     my $sc = $o->{$axis};
@@ -537,7 +644,7 @@ sub init_scale {
     # calculate number of major marks to use
     #print "$axis requested: physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
     #print "$axis            lrange=$sclrange, prange=$scprange, labelsreq=$sc->{labsreq}, smallest=$sc->{smallest}\n";
-    my $lbase10 = log($sclrange)/log(10);
+    my $lbase10 = $sclrange > 0 ? log($sclrange)/log(10) : 0;
     my $mult = 10 ** int($lbase10);
     my $mant = $sclrange/$mult;
     my @scale  = (0.2, 0.5, 1, 2, 5);
@@ -559,7 +666,12 @@ sub init_scale {
     my $llo = int($sc->{llo}/$scale) * $scale;
     $nmarks++ if ($sc->{llo} >= 0 and $llo < $sc->{llo});
     $nmarks = ($nmarks > int($nmarks)) ? int($nmarks)+1 : int($nmarks);
-    $sc->{llo} = ($sc->{llo} >= 0) ? $llo : $llo - 1;
+    if ($sc->{llo} < 0) {
+	$llo -= $scale;
+	$nmarks++;
+    }
+    $nmarks = 1 if $nmarks < 1;
+    $sc->{llo} = $llo;
     $sc->{lhi} = $llo + $nmarks * $scale;
     #print "$axis            nmarks=$nmarks, scale=$scale, subdivs=$subdivs\n";
     
@@ -590,6 +702,7 @@ sub init_scale {
     $sc->{factors} = array_as_string( @factor );    # nesting of (sub)divisions
     $sc->{spreads} = [ @spread ];		    # logical size of those (sub)divisions
     $sc->{markgap} = $scprange/$nmarks;	    # physical size between smallest marks
+    $sc->{markcen} = $sc->{markgap};
     #print "$axis factors  = [", join(", ", @factor), "],   markgap=$sc->{markgap}\n";
 
     # calculate physical width of all the marks 
@@ -639,10 +752,10 @@ sub init_scale {
     pop @labels;
     push @labels, $sc->{lhi};
     $sc->{labels} = array_as_string( @labels );
-    
     #print "$axis labels   = $sc->{labels}\n";
     #print "$axis produced : physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
 
+    # y = mx + c values
     $sc->{l2pm} = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
     $sc->{l2pc} = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
     $sc->{p2lm} = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
@@ -650,10 +763,10 @@ sub init_scale {
     #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
     #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
 }
+# Internal method, initializing one scale
+# expects either ("x", $opts{x_axis}) or ("y", $opts{y_axis})
+# $o->{ch}{...} must already exist
 
-# Internal method, setting axis sizes required for chart dimensions
-# Requires chart fonts to have been initialized
-# 
 sub init_scale_sizes {
     my ($o, $axis, $r) = @_;
     $r = {} unless (defined $r);
@@ -669,10 +782,13 @@ sub init_scale_sizes {
     $sc->{fcol}     = defined($r->{font_color})    ? str($r->{font_color}) : $ch->{fontcol};
     
     $sc->{labels}   = defined($r->{labels})        ? $r->{labels}          : undef;
-    $sc->{rotate}   = (defined($sc->{labels}) and ($axis eq "x")) ? 1        : 0;
-    $sc->{centre}   = defined($sc->{labels})	   ? 2			   : 0;
+    $sc->{rotate}   = (defined($sc->{labels}) and ($axis eq "x")) ? 1      : 0;
+    my $centre      = defined($sc->{labels})	   ? 2			   : 0;
+    my $offset      = defined($sc->{labels})       ? 4                     : 0;
+    $sc->{centre}   = $r->{offset}      	   ? 0			   : $centre;
     $sc->{flags}    = defined($r->{rotate})        ? ($r->{rotate} != 0)   : $sc->{rotate};
     $sc->{flags}   |= defined($r->{center})        ? ($r->{center} != 0)   : $sc->{centre};
+    $sc->{flags}   |= $r->{offset}                 ? $offset               : 0;
 
     my $maxlen = 0;
     if (defined $sc->{labels}) {
@@ -700,6 +816,8 @@ sub init_scale_sizes {
     $sc->{width}    = defined($r->{width})         ? $r->{width}           : $width;
     $sc->{height}   = defined($r->{height})        ? $r->{height}          : $height;
 }
+# Internal method, setting axis sizes required for chart dimensions
+# Requires paper fonts to have been initialized
 
 =head2 Axis Options
 
@@ -716,7 +834,7 @@ the relevant function name.  The options belong within hashes indexed by either 
 	
     Would be set by:
     
-    $pg  = new PostScript::GraphPaper(
+    $pg  = new PostScript::Graph::Paper(
 	    x_axis => { low => 1,
 			high => 12,
 		      },
@@ -739,6 +857,10 @@ the relevant function name.  The options belong within hashes indexed by either 
 By default, any labels given to C<axis_labels> are placed centrally between the lines.  Setting this to 0 puts the
 labels in the normal 'number' position, next to the major lines.
 
+=head3 axis_color
+
+Colour for grid lines on one axis.  See L</paper_color>.  (Defaults to C<paper_color>).
+
 =head3 axis_font
 
 Font for labels and title on the axis.  (Defaults to C<font>)
@@ -750,6 +872,14 @@ Colour for axis title and labels.  (Defaults to C<font_color>)
 =head3 axis_font_size
 
 Size for title and labels on the axis.  (Defaults to C<font_size>)
+
+=head3 axis_heavy_color
+
+The colour of the major, labelled, lines.  (Defaults to C<paper_heavy_color>)
+
+=head3 axis_heavy_width
+
+Width of the labelled lines.  (Defaults to C<paper_heavy_width>)
 
 =head3 axis_height
 
@@ -777,18 +907,35 @@ C<axis_high> and C<axis_low>.
 An indication of the number of major (labelled) marks wanted along the axis.  The program overrides this if it is
 not suitable. (Default derived from C<axis_label_gap>)
 
+=head3 axis_light_color
+
+Colour of the minor, unlabelled, lines. (Defaults to C<paper_light_color>)
+
+=head3 axis_light_width
+
+Width of the lightest lines.  (Defaults to C<paper_light_width>)
+
 =head3 axis_low
 
 The lowest number required to appear on the axis.  This will be rounded down to suit the chosen scale.  (Default:
 0)
 
+=head3 axis_mid_color
+
+A scale of 10 will be divided into two lots of 5 seperated by a slightly heavier line at the 5 mark.  This is the
+'mid' line.  (Defaults to C<paper_mid_color>)
+
+=head3 axis_mid_width
+
+Width of the mid-lines, see </axis_mid_color>.  (Defaults to C<paper_mid_width>)
+
 =head3 axis_mark_min
 
-The smallest mark on the axis.  (Defaults to C<chart_mark_min>)
+The smallest mark on the axis.  (Defaults to C<paper_mark_min>)
 
 =head3 axis_mark_max
 
-The tallest mark on the axis.  (defaults to C<chart_mark_max>)
+The tallest mark on the axis.  (defaults to C<paper_mark_max>)
 
 =head3 axis_rotate
 
@@ -798,7 +945,7 @@ provided, 0 otherwise)
 =head3 axis_smallest
 
 This is the smallest allowable gap between axis marks.  Setting this controls how many subdivisions the program
-generates.  It would be wise to set this as a multiple of C<chart_dots_per_inch>.  (Defaults to 3 dots)
+generates.  It would be wise to set this as a multiple of C<paper_dots_per_inch>.  (Defaults to 3 dots)
 
 
 =head3 axis_title
@@ -813,41 +960,53 @@ For y: width allocated for y axis marks and labels.  (Default: 36)
 
 =cut
 
-sub x_axis_low        { shift()->{x}{llo}; }
-sub x_axis_high       { shift()->{x}{lhi}; }
-sub x_axis_width      { shift()->{x}{width}; }
-sub x_axis_height     { shift()->{x}{height}; }
-sub x_axis_label_gap  { shift()->{x}{labelgap}; }
-sub x_axis_smallest   { shift()->{x}{smallest}; }
-sub x_axis_title      { shift()->{x}{title}; }
-sub x_axis_font       { shift()->{x}{font}; }
-sub x_axis_font_color { shift()->{x}{fcol}; }
-sub x_axis_font_size  { shift()->{x}{fsize}; }
-sub x_axis_mark_min   { shift()->{x}{markmin}; }
-sub x_axis_mark_max   { shift()->{x}{markmax}; }
-sub x_axis_labels_req { shift()->{x}{labsreq}; }
-sub x_axis_labels     { shift()->{x}{labels}; }
-sub x_axis_rotate     { shift()->{x}{rotate}; }
-sub x_axis_center     { shift()->{x}{centre}; }
-
-sub y_axis_low        { shift()->{y}{llo}; }
-sub y_axis_high       { shift()->{y}{lhi}; }
-sub y_axis_width      { shift()->{y}{width}; }
-sub y_axis_height     { shift()->{y}{height}; }
-sub y_axis_label_gap  { shift()->{y}{labelgap}; }
-sub y_axis_smallest   { shift()->{y}{smallest}; }
-sub y_axis_title      { shift()->{y}{title}; }
-sub y_axis_font       { shift()->{y}{font}; }
-sub y_axis_font_color { shift()->{y}{fcol}; }
-sub y_axis_font_size  { shift()->{y}{fsize}; }
-sub y_axis_mark_min   { shift()->{y}{markmin}; }
-sub y_axis_mark_max   { shift()->{y}{markmax}; }
-sub y_axis_labels_req { shift()->{y}{labsreq}; }
-sub y_axis_labels     { shift()->{y}{labels}; }
-sub y_axis_rotate     { shift()->{y}{rotate}; }
-sub y_axis_center     { shift()->{y}{centre}; }
-
-#== PostScript code ==========================================================
+sub x_axis_color       { color_as_array( shift()->{x}{color} ); }
+sub x_axis_low         { shift()->{x}{llo}; }
+sub x_axis_high        { shift()->{x}{lhi}; }
+sub x_axis_width       { shift()->{x}{width}; }
+sub x_axis_height      { shift()->{x}{height}; }
+sub x_axis_label_gap   { shift()->{x}{labelgap}; }
+sub x_axis_smallest    { shift()->{x}{smallest}; }
+sub x_axis_title       { shift()->{x}{title}; }
+sub x_axis_font        { shift()->{x}{font}; }
+sub x_axis_font_color  { shift()->{x}{fcol}; }
+sub x_axis_font_size   { shift()->{x}{fsize}; }
+sub x_axis_heavy_color { color_as_array( shift()->{x}{heavycol} ); }
+sub x_axis_mid_color   { color_as_array( shift()->{x}{midcol} ); }
+sub x_axis_light_color { color_as_array( shift()->{x}{lightcol} ); }
+sub x_axis_heavy_width { shift()->{x}{heavyw}; }
+sub x_axis_mid_width   { shift()->{x}{midw}; }
+sub x_axis_light_width { shift()->{x}{lightw}; }
+sub x_axis_mark_min    { shift()->{x}{markmin}; }
+sub x_axis_mark_max    { shift()->{x}{markmax}; }
+sub x_axis_labels_req  { shift()->{x}{labsreq}; }
+sub x_axis_labels      { shift()->{x}{labels}; }
+sub x_axis_rotate      { shift()->{x}{rotate}; }
+sub x_axis_center      { shift()->{x}{centre}; }
+sub y_axis_color       { color_as_array( shift()->{y}{color} ); }
+sub y_axis_low         { shift()->{y}{llo}; }
+sub y_axis_high        { shift()->{y}{lhi}; }
+sub y_axis_width       { shift()->{y}{width}; }
+sub y_axis_height      { shift()->{y}{height}; }
+sub y_axis_label_gap   { shift()->{y}{labelgap}; }
+sub y_axis_smallest    { shift()->{y}{smallest}; }
+sub y_axis_title       { shift()->{y}{title}; }
+sub y_axis_font        { shift()->{y}{font}; }
+sub y_axis_font_color  { shift()->{y}{fcol}; }
+sub y_axis_font_size   { shift()->{y}{fsize}; }
+sub y_axis_heavy_color { color_as_array( shift()->{y}{heavycol} ); }
+sub y_axis_mid_color   { color_as_array( shift()->{y}{midcol} ); }
+sub y_axis_light_color { color_as_array( shift()->{y}{lightcol} ); }
+sub y_axis_heavy_width { shift()->{y}{heavyw}; }
+sub y_axis_mid_width   { shift()->{y}{midw}; }
+sub y_axis_light_width { shift()->{y}{lightw}; }
+sub y_axis_mark_min    { shift()->{y}{markmin}; }
+sub y_axis_mark_max    { shift()->{y}{markmax}; }
+sub y_axis_labels_req  { shift()->{y}{labsreq}; }
+sub y_axis_labels      { shift()->{y}{labels}; }
+sub y_axis_rotate      { shift()->{y}{rotate}; }
+sub y_axis_center      { shift()->{y}{centre}; }
+### PostScript code ##########################################################
 
 =head1 POSTSCRIPT CODE
 
@@ -1062,11 +1221,490 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
     hy1		head top
     xlc		constant for logical x
     xlm		multiplier for logical x
+    xmarkcen	width for centering label
     ylc		constant for logical y
     ylm		multiplier for logical y
+    ymarkcen	width for centering label
 
 =cut
 
+ 
+sub common_code_for_scales {
+    my ($o) = @_;
+    my $ch = $o->{ch};
+
+    my $name = "GraphPaper";
+    $o->{ps}->add_function( $name, <<END_COMMON_FUNCTIONS ) unless ($o->{ps}->has_function($name));
+	/gpaperdict 120 dict def
+	gpaperdict begin
+	/finish 0 def
+	/labelbuf 80 string def
+
+	/gpapercolor {
+	    gpaperdict begin
+	    dup type (arraytype) eq {
+		aload pop 
+		setrgbcolor
+	    }{
+		dup 0 le { neg } if
+		setgray
+	    } ifelse
+	    end
+	} bind def
+	% _ array|int => _
+
+	/gpaperfont {
+	    gpaperdict begin
+	    gpapercolor
+	    /fontsize exch def 
+	    findfont fontsize scalefont setfont
+	    end
+	} bind def
+	% _ font size color => _
+
+	/centered {
+	    3 2 roll labelbuf cvs 3 1 roll
+	    2 index stringwidth pop 2 div neg
+	    3 2 roll add exch
+	    moveto show
+	} bind def
+	% _ str x y => _
+
+	/rjustified {
+	    3 2 roll labelbuf cvs 3 1 roll
+	    2 index stringwidth pop neg
+	    3 2 roll add exch
+	    moveto show
+	} bind def
+	% _ str x y => _
+
+	/rotated {
+	    3 2 roll labelbuf cvs 3 1 roll
+	    gsave
+	    translate
+	    -90 rotate
+	    0 0 moveto show
+	    grestore
+	} bind def
+	% _str x y => _
+
+	/init_xy {
+	    /setstrokeadjust where { pop true setstrokeadjust } if
+	    newpath
+	    moveto
+	    store_xy
+	    stroke
+	} bind def
+	% _ x y => _
+
+	/store_xy {
+	    gpaperdict begin
+	    currentpoint
+	    /y exch def
+	    /x exch def
+	    end
+	} bind def
+	% _ x y => _
+
+	/copy_array {
+	    gpaperdict begin
+	    mark 1 index aload pop
+	    /array_max counttomark 2 sub def
+	    ]
+	    end
+	} bind def
+	% _ array => _ array array
+	% make deep copy of array and set array_max
+
+	/drawonegrid {
+	    gpaperdict begin
+	    /label 0 def
+	    /drawline exch cvx def
+	    copy_array
+	    0 drawline
+	    /finish 0 def
+	    {
+		% dec counters in array
+		array_max -1 0
+		{   
+		    2 copy 2 copy get 1 sub put
+		    dup /factor exch def
+		    2 copy get 0 gt { pop exit } if
+		    dup 0 eq {
+			2 copy get 0 eq {
+			    /finish 1 def
+			} if
+		    } if
+		    2 copy dup 5 index
+		    exch get put
+		    pop
+		} for
+		factor drawline
+		finish 1 eq { exit } if
+	    } loop
+	    pop pop
+	    end
+	} def
+	% Requires an array of scales
+	% and a suitable fn for drawing each line
+	% _ factor_array fn_name => _
+
+	/setlines {
+	    dup 0 eq {
+		heavyw setlinewidth
+		heavyc gpapercolor
+	    }{
+		dup 1 eq {
+		    midw setlinewidth
+		    midc gpapercolor
+		}{
+		    lightw setlinewidth
+		    lightc gpapercolor
+		} ifelse
+	    } ifelse
+	} bind def
+	% _ depth => _ depth
+
+	/drawbox {
+	    7 dict begin
+	    gsave
+	    /boxw exch def /boxc exch def 
+	    /y1 exch def /x1 exch def /y0 exch def /x0 exch def
+	    newpath
+	    x0 y0 moveto x0 y1 lineto x1 y1 lineto x1 y0 lineto
+	    closepath 
+	    boxc gpapercolor boxw setlinewidth
+	    stroke
+	    grestore
+	    end
+	} bind def
+	% x0 y0 x1 y1 outline_col outline_width => _
+
+	/fillbox {
+	    7 dict begin
+	    gsave
+	    /boxw exch def /boxc exch def /fillc exch def 
+	    /y1 exch def /x1 exch def /y0 exch def /x0 exch def
+	    newpath
+	    x0 y0 moveto x0 y1 lineto x1 y1 lineto x1 y0 lineto
+	    closepath 
+	    gsave fillc gpapercolor fill grestore
+	    boxc gpapercolor boxw setlinewidth
+	    stroke
+	    grestore
+	    end
+	} bind def
+	% x0 y0 x1 y1 fill_col outline_col outline_width => _
+
+	/graph_area {
+	    gpaperdict begin
+	    /fgnd exch def
+	    /bgnd exch def
+	    /gy1 exch def
+	    /gx1 exch def
+	    /gy0 exch def
+	    /gx0 exch def
+	    /width gx1 gx0 sub def
+	    /height gy1 gy0 sub def
+	    end
+	} bind def
+	% _ x0 y0 x1 y1 bgnd boxcol => _
+
+	/set_xaxis_colors {
+	    gpaperdict begin
+	    /lightc xlightc def
+	    /lightw xlightw def
+	    /midc xmidc def
+	    /midw xmidw def
+	    /heavyc xheavyc def
+	    /heavyw xheavyw def
+	    end
+	} bind def
+	% _ => _
+
+	/set_yaxis_colors {
+	    gpaperdict begin
+	    /lightc ylightc def
+	    /lightw ylightw def
+	    /midc ymidc def
+	    /midw ymidw def
+	    /heavyc yheavyc def
+	    /heavyw yheavyw def
+	    end
+	} bind def
+	% _ => _
+
+	/xaxis_colors {
+	    gpaperdict begin
+	    /xlightc exch def
+	    /xlightw exch def
+	    /xmidc exch def
+	    /xmidw exch def
+	    /xheavyc exch def
+	    /xheavyw exch def
+	    end
+	} bind def
+	% _ heavyw heavyc midw midc lightw lightc => _
+
+	/yaxis_colors {
+	    gpaperdict begin
+	    /ylightc exch def
+	    /ylightw exch def
+	    /ymidc exch def
+	    /ymidw exch def
+	    /yheavyc exch def
+	    /yheavyw exch def
+	    end
+	} bind def
+	% _ heavyw heavyc midw midc lightw lightc => _
+
+	/xaxis_area {
+	    gpaperdict begin
+	    /xy1 exch def
+	    /xx1 exch def
+	    /xy0 exch def
+	    /xx0 exch def
+	    end
+	} bind def
+	% _ x0 y0 x1 y1 => _
+
+	/xaxis_labels {
+	    gpaperdict begin
+	    /xtitle exch def
+	    /xcol exch def
+	    /xsize exch def
+	    /xfont exch def
+	    /xflags exch def
+	    /xldepth exch def
+	    /xlabels exch def
+	    /xfactors exch def
+	    end
+	} bind def
+	% _ factors labels flags font size color title => _
+
+	/xaxis_marks {
+	    gpaperdict begin
+	    /xmarkcen exch def
+	    /xmarkgap exch def
+	    /xmarkmax exch def
+	    /xmarkmul exch def
+	    /xmarkmin exch def
+	    end
+	} bind def
+	% _ xmarkmin xmarkmul xmarkmax xmarkgap xmarkcen => _ 
+
+	/yaxis_area {
+	    gpaperdict begin
+	    /yy1 exch def
+	    /yx1 exch def
+	    /yy0 exch def
+	    /yx0 exch def
+	    end
+	} bind def
+	% _ x0 y0 x1 y1 => _
+
+	/yaxis_labels {
+	    gpaperdict begin
+	    /ytitle exch def
+	    /ycol exch def
+	    /ysize exch def
+	    /yfont exch def
+	    /yflags exch def
+	    /yldepth exch def
+	    /ylabels exch def
+	    /yfactors exch def
+	    end
+	} bind def
+	% _ factors labels flags font size color title => _
+
+	/yaxis_marks {
+	    gpaperdict begin
+	    /ymarkcen exch def
+	    /ymarkgap exch def
+	    /ymarkmax exch def
+	    /ymarkmul exch def
+	    /ymarkmin exch def
+	    end
+	} bind def
+	% _ ymarkmin ymarkmul ymarkmax ymarkgap ymarkcen => _ 
+
+	/heading_area {
+	    gpaperdict begin
+	    /hy1 exch def
+	    /hx1 exch def
+	    /hy0 exch def
+	    /hx0 exch def
+	    end
+	} bind def
+	% _ x0 y0 x1 y1 => _
+
+	/heading_labels {
+	    gpaperdict begin
+	    /htitle exch def
+	    /hcol exch def
+	    /hsize exch def
+	    /hfont exch def
+	    end
+	} bind def
+	% _ hfont hsize hcol title => _
+
+	/conv_consts {
+	    gpaperdict begin
+	    /ylc exch def
+	    /ylm exch def
+	    /xlc exch def
+	    /xlm exch def
+	    end
+	} bind def
+	% _ xlm xlc ylm ylc => _
+
+	/px { xlm mul xlc add } bind def
+		
+	% _ int => int
+	/py { ylm mul ylc add } bind def
+	
+	% _ => _
+	/drawgpaper {
+	    gpaperdict begin
+		gx0 gy0 gx1 gy1 bgnd bgnd 0.25 fillbox
+		hfont hsize hcol gpaperfont
+		htitle hx1 hx0 add 2 div hy1 hsize sub centered
+		
+		xfont xsize xcol gpaperfont
+		xtitle xx1 xy0 rjustified
+		xflags 4 and 4 eq {
+		    % offset lines
+		    gx0 xmarkgap add
+		    gy0 init_xy
+		}{
+		    gx0 gy0 init_xy
+		} ifelse
+		set_xaxis_colors
+		xfactors /xdraw drawonegrid
+		
+		yfont ysize ycol gpaperfont
+		ytitle yx0 hy0 ysize 0.5 mul add moveto show
+		gx0 gy0 init_xy
+		set_yaxis_colors
+		yfactors /ydraw drawonegrid
+		
+		gx0 gy0 gx1 gy1 fgnd heavyw drawbox
+	    end
+	} bind def
+	% _ int => int
+
+	/xdraw {
+	    gpaperdict begin
+		dup xldepth le {
+		    gsave
+			xcol gpapercolor
+			xlabels label get
+			xflags 1 and 1 eq {
+			    xflags 2 and 2 eq {
+				% rotated and centred
+				x fontsize 0.33 mul sub xmarkcen 0.5 mul add
+				y xmarkmax sub 2 sub
+			    }{
+				% rotated and not centered
+				x fontsize 0.33 mul sub
+				y xmarkmax sub 2 sub
+			    } ifelse
+			    rotated
+			}{
+			    xflags 2 and 2 eq {
+				% not rotated and centred
+				x xmarkcen 0.5 mul add
+				y xmarkmax sub fontsize sub
+			    }{
+				% not rotated and not centred
+				x 
+				y xmarkmax sub fontsize sub
+			    } ifelse
+			    centered
+			} ifelse
+		    grestore
+		    /label label 1 add def
+		} if
+		setlines
+		newpath
+		x y moveto
+		dup xmarkmul mul xmarkmin add
+		xmarkmax exch sub
+		dup neg 0 exch rlineto
+		0 exch rmoveto
+		dup 2 le {
+		    0 height rlineto
+		    0 height neg rmoveto
+		} if
+		xmarkgap 0 rmoveto
+		store_xy
+		stroke
+		pop
+	    end
+	} bind def
+	% _ depth => _
+	% draw one vertical line
+
+	/ydraw {
+	    gpaperdict begin
+		dup yldepth le {
+		    gsave
+			ycol gpapercolor
+			ylabels label get
+			yflags 1 and 1 eq {
+			    yflags 2 and 2 eq {
+				% rotate and centre
+				x ymarkmax sub fontsize sub
+				1 index labelbuf cvs stringwidth pop 2 div 
+				y add ymarkcen 0.5 mul add
+			    }{
+				% rotate and not centre
+				x ymarkmax sub fontsize sub
+				1 index labelbuf cvs stringwidth pop 2 div
+				y add
+			    } ifelse
+			    rotated
+			}{
+			    yflags 2 and 2 eq {
+				% not rotate and centre
+				x ymarkmax sub 2 sub
+				y fontsize 0.33 mul sub ymarkcen 0.6 mul add
+			    }{
+				% not rotate and not centre
+				x ymarkmax sub 2 sub
+				y fontsize 0.33 mul sub
+			    } ifelse
+			    rjustified
+			} ifelse
+		    grestore
+		    /label label 1 add def
+		} if
+		setlines
+		newpath
+		x y moveto
+		dup ymarkmul mul ymarkmin add
+		ymarkmax exch sub
+		dup neg 0 rlineto
+		0 rmoveto
+		dup 2 le {
+		    width 0 rlineto
+		    width neg 0 rmoveto
+		} if
+		0 ymarkgap rmoveto
+		store_xy
+		stroke
+		pop
+	    end
+	} bind def
+	% _ depth => _
+	% draw one horizontal line
+
+	end % gpaperdict
+END_COMMON_FUNCTIONS
+}
+# Internal method 
+# Postscript functions common to all axes
+#
 # This list is to ensure that enough space is allowed in gpaperdict
 # for Level 1 interpreters.
 #
@@ -1105,6 +1743,7 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 # boxw		width of box outline
 # drawline	place holder in drawonegrid for xdraw/ydraw
 # factor	array index in drawonegrid indicating the factor changed 
+# fgnd		colour of grid outline
 # fillc		fill colour of box
 # finish	flag used by drawgpaper
 # fontsize	height of most recent gpaperfont
@@ -1115,8 +1754,6 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 # hcol		font colour used on heading
 # hfont		font name used on heading
 # hsize		font size used on heading
-# heavyc	colour for heavy lines
-# heavyw	width of heavy lines
 # height	height of graph area
 # htitle	title for heading
 # hx0		head left
@@ -1125,10 +1762,6 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 # hy1		head top
 # label		label counter used by drawonegrid
 # labelbuf	buffer for string conversion
-# lightc	colour for light lines
-# lightw	width of light lines
-# midc		colour for mid lines
-# midw		width of mid lines
 # width		width of graph area
 # x		current position between paths
 # x0		temp left
@@ -1137,14 +1770,21 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 # xfactors	array holding mark info
 # xflags	1=rotate, 2=centre
 # xfont		font name used on x axis
+# xheavyc	colour for heavy lines
+# xheavyw	width of heavy lines
 # xlabels	array of labels for x axis
 # xlc		constant for logical x
 # xldepth	print labels up to this depth
+# xlightc	colour for light lines
+# xlightw	width of light lines
 # xlm		multiplier for logical x
+# xmarkcen	width for centering labels
 # xmarkgap	gap between adjacent marks 
 # xmarkmax	tallest mark
 # xmarkmin	smallest mark	    
 # xmarkmul	step added for each depth
+# xmidc		colour for mid lines
+# xmidw		width of mid lines
 # xsize		font size used on x axis
 # xtitle	title for x axis
 # xx0		x axis left 
@@ -1158,519 +1798,126 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 # yfactors	array of scale info for drawonegrid
 # yflags	1=rotate, 2=centre
 # yfont		font name used on y axis
+# yheavyc	colour for heavy lines
+# yheavyw	width of heavy lines
 # ylabels	array of labels for y axis
 # ylc		constant for logical y
 # yldepth	print labels up to this depth
+# ylightc	colour for light lines
+# ylightw	width of light lines
 # ylm		multiplier for logical y
+# ymarkcen	width for centering labels
 # ymarkgap	gap between adjacent marks 
 # ymarkmax	tallest mark
 # ymarkmin	smallest mark	    
 # ymarkmul	step added for each depth
+# ymidc		colour for mid lines
+# ymidw		width of mid lines
 # ysize		font size used on y axis
 # ytitle	title for y axis
 # yx0		y axis left
 # yx1		y axis right (same as xx0)
 # yy0		y axis bottom
 # yy1		y axis top
-# 
-# Internal method 
-# Postscript functions common to all axes
-# 
-sub common_code_for_scales {
-    my ($o) = @_;
-    my $ch = $o->{ch};
 
-    my $name = "GraphPaper";
-    $o->{ps}->add_function( $name, <<END_COMMON_FUNCTIONS ) unless ($o->{ps}->has_function($name));
-	/gpaperdict 110 dict def
-	gpaperdict begin
-	/finish 0 def
-	/labelbuf 80 string def
-
-	% _ array|int => _
-	/gpapercolor {
-	    gpaperdict begin
-	    dup type (arraytype) eq {
-		aload pop 
-		setrgbcolor
-	    }{
-		dup 0 le { neg } if
-		setgray
-	    } ifelse
-	    end
-	} bind def
-
-	% _ font size color => _
-	/gpaperfont {
-	    gpaperdict begin
-	    gpapercolor
-	    /fontsize exch def 
-	    findfont fontsize scalefont setfont
-	    end
-	} bind def
-
-	% _ str x y => _
-	/centered {
-	    3 2 roll labelbuf cvs 3 1 roll
-	    2 index stringwidth pop 2 div neg
-	    3 2 roll add exch
-	    moveto show
-	} bind def
-
-	% _ str x y => _
-	/rjustified {
-	    3 2 roll labelbuf cvs 3 1 roll
-	    2 index stringwidth pop neg
-	    3 2 roll add exch
-	    moveto show
-	} bind def
-
-	% _str x y => _
-	/rotated {
-	    3 2 roll labelbuf cvs 3 1 roll
-	    gsave
-	    translate
-	    -90 rotate
-	    0 0 moveto show
-	    grestore
-	} bind def
-
-	% _ x y => _
-	/init_xy {
-	    /setstrokeadjust where { pop true setstrokeadjust } if
-	    newpath
-	    moveto
-	    store_xy
-	    stroke
-	} bind def
-
-	% _ x y => _
-	/store_xy {
-	    gpaperdict begin
-	    currentpoint
-	    /y exch def
-	    /x exch def
-	    end
-	} bind def
-
-	% _ array => _ array array
-	% make deep copy of array and set array_max
-	/copy_array {
-	    gpaperdict begin
-	    mark 1 index aload pop
-	    /array_max counttomark 2 sub def
-	    ]
-	    end
-	} bind def
-
-	% Requires an array of scales
-	% and a suitable fn for drawing each line
-	% _ factor_array fn_name => _
-	/drawonegrid {
-	    gpaperdict begin
-	    /label 0 def
-	    /drawline exch cvx def
-	    copy_array
-	    0 drawline
-	    /finish 0 def
-	    {
-		% dec counters in array
-		array_max -1 0
-		{   
-		    2 copy 2 copy get 1 sub put
-		    dup /factor exch def
-		    2 copy get 0 gt { pop exit } if
-		    dup 0 eq {
-			2 copy get 0 eq {
-			    /finish 1 def
-			} if
-		    } if
-		    2 copy dup 5 index
-		    exch get put
-		    pop
-		} for
-		factor drawline
-		finish 1 eq { exit } if
-	    } loop
-	    pop pop
-	    end
-	} def
-
-	% _ depth => _ depth
-	/setlines {
-	    dup 0 eq {
-		heavyw setlinewidth
-		heavyc gpapercolor
-	    }{
-		dup 1 eq {
-		    midw setlinewidth
-		    midc gpapercolor
-		}{
-		    lightw setlinewidth
-		    lightc gpapercolor
-		} ifelse
-	    } ifelse
-	} bind def
-
-	% x0 y0 x1 y1 outline_col outline_width => _
-	/drawbox {
-	    7 dict begin
-	    gsave
-	    /boxw exch def /boxc exch def 
-	    /y1 exch def /x1 exch def /y0 exch def /x0 exch def
-	    newpath
-	    x0 y0 moveto x0 y1 lineto x1 y1 lineto x1 y0 lineto
-	    closepath 
-	    boxc gpapercolor boxw setlinewidth
-	    stroke
-	    grestore
-	    end
-	} bind def
-
-	% x0 y0 x1 y1 fill_col outline_col outline_width => _
-	/fillbox {
-	    7 dict begin
-	    gsave
-	    /boxw exch def /boxc exch def /fillc exch def 
-	    /y1 exch def /x1 exch def /y0 exch def /x0 exch def
-	    newpath
-	    x0 y0 moveto x0 y1 lineto x1 y1 lineto x1 y0 lineto
-	    closepath 
-	    gsave fillc gpapercolor fill grestore
-	    boxc gpapercolor boxw setlinewidth
-	    stroke
-	    grestore
-	    end
-	} bind def
-
-	% _ x0 y0 x1 y1 bgnd => _
-	/graph_area {
-	    gpaperdict begin
-	    /bgnd exch def
-	    /gy1 exch def
-	    /gx1 exch def
-	    /gy0 exch def
-	    /gx0 exch def
-	    /width gx1 gx0 sub def
-	    /height gy1 gy0 sub def
-	    gx0 gy0 gx1 gy1 bgnd bgnd 0.25 fillbox
-	    end
-	} bind def
-
-	% _ heavyw heavyc midw midc lightw lightc => _
-	/graph_colors {
-	    gpaperdict begin
-	    /lightc exch def
-	    /lightw exch def
-	    /midc exch def
-	    /midw exch def
-	    /heavyc exch def
-	    /heavyw exch def
-	    end
-	} bind def
-
-	% _ x0 y0 x1 y1 => _
-	/xaxis_area {
-	    gpaperdict begin
-	    /xy1 exch def
-	    /xx1 exch def
-	    /xy0 exch def
-	    /xx0 exch def
-	    end
-	} bind def
-
-	% _ factors labels flags font size color title => _
-	/xaxis_labels {
-	    gpaperdict begin
-	    /xtitle exch def
-	    /xcol exch def
-	    /xsize exch def
-	    /xfont exch def
-	    /xflags exch def
-	    /xldepth exch def
-	    /xlabels exch def
-	    /xfactors exch def
-	    end
-	} bind def
-
-	% _ xmarkmin xmarkmul xmarkmax xmarkgap => _ 
-	/xaxis_marks {
-	    gpaperdict begin
-	    /xmarkgap exch def
-	    /xmarkmax exch def
-	    /xmarkmul exch def
-	    /xmarkmin exch def
-	    end
-	} bind def
-
-	% _ x0 y0 x1 y1 => _
-	/yaxis_area {
-	    gpaperdict begin
-	    /yy1 exch def
-	    /yx1 exch def
-	    /yy0 exch def
-	    /yx0 exch def
-	    end
-	} bind def
-
-	% _ factors labels flags font size color title => _
-	/yaxis_labels {
-	    gpaperdict begin
-	    /ytitle exch def
-	    /ycol exch def
-	    /ysize exch def
-	    /yfont exch def
-	    /yflags exch def
-	    /yldepth exch def
-	    /ylabels exch def
-	    /yfactors exch def
-	    end
-	} bind def
-
-	% _ ymarkmin ymarkmul ymarkmax ymarkgap => _ 
-	/yaxis_marks {
-	    gpaperdict begin
-	    /ymarkgap exch def
-	    /ymarkmax exch def
-	    /ymarkmul exch def
-	    /ymarkmin exch def
-	    end
-	} bind def
-
-	% _ x0 y0 x1 y1 => _
-	/heading_area {
-	    gpaperdict begin
-	    /hy1 exch def
-	    /hx1 exch def
-	    /hy0 exch def
-	    /hx0 exch def
-	    end
-	} bind def
-
-	% _ hfont hsize hcol title => _
-	/heading_labels {
-	    gpaperdict begin
-	    /htitle exch def
-	    /hcol exch def
-	    /hsize exch def
-	    /hfont exch def
-	    end
-	} bind def
-
-	% _ xlm xlc ylm ylc => _
-	/conv_consts {
-	    gpaperdict begin
-	    /ylc exch def
-	    /ylm exch def
-	    /xlc exch def
-	    /xlm exch def
-	    end
-	} bind def
-
-	% _ int => int
-	/px { xlm mul xlc add } bind def
-		
-	% _ int => int
-	/py { ylm mul ylc add } bind def
-	
-	% _ => _
-	/drawgpaper {
-	    gpaperdict begin
-		hfont hsize hcol gpaperfont
-		htitle hx1 hx0 add 2 div hy1 hsize sub centered
-		
-		xfont xsize xcol gpaperfont
-		xtitle xx1 xy0 rjustified
-		gx0 gy0 init_xy
-		xfactors /xdraw drawonegrid
-		
-		yfont ysize ycol gpaperfont
-		ytitle yx0 hy0 ysize 0.5 mul add moveto show
-		gx0 gy0 init_xy
-		yfactors /ydraw drawonegrid
-		
-		gx0 gy0 gx1 gy1 heavyc heavyw drawbox
-	    end
-	} bind def
-
-	% _ depth => _
-	% draw one vertical line
-	/xdraw {
-	    gpaperdict begin
-		dup xldepth le {
-		    gsave
-			xcol gpapercolor
-			xlabels label get
-			xflags 1 and 1 eq {
-			    xflags 2 and 2 eq {
-				% rotated and centred
-				x fontsize 0.33 mul sub xmarkgap 0.5 mul add
-				y xmarkmax sub 2 sub
-			    }{
-				% rotated and not centered
-				x fontsize 0.33 mul sub
-				y xmarkmax sub 2 sub
-			    } ifelse
-			    rotated
-			}{
-			    xflags 2 and 2 eq {
-				% not rotated and centred
-				x xmarkgap 0.5 mul add
-				y xmarkmax sub fontsize sub
-			    }{
-				% not rotated and not centred
-				x 
-				y xmarkmax sub fontsize sub
-			    } ifelse
-			    centered
-			} ifelse
-		    grestore
-		    /label label 1 add def
-		} if
-		setlines
-		newpath
-		x y moveto
-		dup xmarkmul mul xmarkmin add
-		xmarkmax exch sub
-		dup neg 0 exch rlineto
-		0 exch rmoveto
-		dup 2 le {
-		    0 height rlineto
-		    0 height neg rmoveto
-		} if
-		xmarkgap 0 rmoveto
-		store_xy
-		stroke
-		pop
-	    end
-	} bind def
-
-	% _ depth => _
-	% draw one horizontal line
-	/ydraw {
-	    gpaperdict begin
-		dup yldepth le {
-		    gsave
-			ycol gpapercolor
-			ylabels label get
-			yflags 1 and 1 eq {
-			    yflags 2 and 2 eq {
-				% rotate and centre
-				x ymarkmax sub fontsize sub
-				1 index labelbuf cvs stringwidth pop 2 div 
-				y add ymarkgap 0.5 mul add
-			    }{
-				% rotate and not centre
-				x ymarkmax sub fontsize sub
-				1 index labelbuf cvs stringwidth pop 2 div
-				y add
-			    } ifelse
-			    rotated
-			}{
-			    yflags 2 and 2 eq {
-				% not rotate and centre
-				x ymarkmax sub 2 sub
-				y fontsize 0.33 mul sub ymarkgap 0.6 mul add
-			    }{
-				% not rotate and not centre
-				x ymarkmax sub 2 sub
-				y fontsize 0.33 mul sub
-			    } ifelse
-			    rjustified
-			} ifelse
-		    grestore
-		    /label label 1 add def
-		} if
-		setlines
-		newpath
-		x y moveto
-		dup ymarkmul mul ymarkmin add
-		ymarkmax exch sub
-		dup neg 0 rlineto
-		0 rmoveto
-		dup 2 le {
-		    width 0 rlineto
-		    width neg 0 rmoveto
-		} if
-		0 ymarkgap rmoveto
-		store_xy
-		stroke
-		pop
-	    end
-	} bind def
-
-	end % gpaperdict
-END_COMMON_FUNCTIONS
-}
-# 
-# Internal method, called by constructor
-#
 sub draw_scales {
     my ($o) = @_;
     my $ch = $o->{ch};
+    my $x = $o->{x};
+    my $y = $o->{y};
 
     $o->{ps}->add_to_page( <<END_SCALES );
 	gpaperdict begin
-	$ch->{gx0} $ch->{gy0} $ch->{gx1} $ch->{gy1} $ch->{bgnd} graph_area
-	$ch->{heavyw} $ch->{heavycol} $ch->{midw} $ch->{midcol} $ch->{lightw} $ch->{lightcol} graph_colors
+	$ch->{gx0} $ch->{gy0} $ch->{gx1} $ch->{gy1} $ch->{bgnd} $ch->{fgnd} graph_area
 	$ch->{hx0} $ch->{hy0} $ch->{hx1} $ch->{hy1} heading_area
 	/$ch->{hfont} $ch->{hsize} $ch->{hcol} ($ch->{title}) heading_labels
 	$ch->{xx0} $ch->{xy0} $ch->{xx1} $ch->{xy1} xaxis_area
 	$ch->{yx0} $ch->{yy0} $ch->{yx1} $ch->{yy1} yaxis_area
-	$o->{x}{markmin} $o->{x}{markmul} $o->{x}{markmax} $o->{x}{markgap} xaxis_marks
-	$o->{y}{markmin} $o->{y}{markmul} $o->{y}{markmax} $o->{y}{markgap} yaxis_marks
-	$o->{x}{factors} $o->{x}{labels} $o->{x}{ldepth} $o->{x}{flags}
-	    /$o->{x}{font} $o->{x}{fsize} $o->{x}{fcol} ($o->{x}{title}) xaxis_labels
-	$o->{y}{factors} $o->{y}{labels} $o->{y}{ldepth} $o->{y}{flags}
-	    /$o->{y}{font} $o->{y}{fsize} $o->{y}{fcol} ($o->{y}{title}) yaxis_labels
+	$x->{heavyw} $x->{heavycol} $x->{midw} $x->{midcol} $x->{lightw} $x->{lightcol} xaxis_colors
+	$y->{heavyw} $y->{heavycol} $y->{midw} $y->{midcol} $y->{lightw} $y->{lightcol} yaxis_colors
+	$x->{markmin} $x->{markmul} $x->{markmax} $x->{markgap} $x->{markcen} xaxis_marks
+	$y->{markmin} $y->{markmul} $y->{markmax} $y->{markgap} $y->{markcen} yaxis_marks
+	$x->{factors} $x->{labels} $x->{ldepth} $x->{flags}
+	    /$x->{font} $x->{fsize} $x->{fcol} ($x->{title}) xaxis_labels
+	$y->{factors} $y->{labels} $y->{ldepth} $y->{flags}
+	    /$y->{font} $y->{fsize} $y->{fcol} ($y->{title}) yaxis_labels
 	drawgpaper
-	$o->{x}{l2pm} $o->{x}{l2pc} $o->{y}{l2pm} $o->{y}{l2pc} conv_consts
+	$x->{l2pm} $x->{l2pc} $y->{l2pm} $y->{l2pc} conv_consts
 	end
 END_SCALES
 }
+# Internal method, called by constructor
 
 =head1 OBJECT METHODS
 
-Methods are provided which access the option values given to the constructor.  Those are B<file>, and all B<chart_>,
+Methods are provided which access the option values given to the constructor.  Those are B<file>, and all B<paper_>,
 B<x_axis_> and B<y_axis_> methods documented under </CONSTRUCTOR>.
 
-The most common PostScript::File methods are also provided as members of this class.
+The most common PostScript::Graph::File methods are also provided as members of this class.
 
 However, the most useful methods are those which give access to the layout calculations including conversion
 functions.
 
 =head2 Convenience methods
 
-A few methods of the underlying PostScript::File object are provided for convenience.  The others can be called
+A few methods of the underlying PostScript::Graph::File object are provided for convenience.  The others can be called
 via the B<file()> function.  The following both do the same thing.
 
     $pg->newpage();
     $pg->file()->newpage();
 
+=cut
+
+sub output {
+    my ($o, @params) = @_; 
+    $o->{ps}->output( @params );
+}
+
 =head3 output( file [, dir] )
 
-Output the chart as a file.  See L<PostScript::File/output>.
-
-=head3 newpage( [page] )
-
-Start a new page in the underlying PostScript::File object.  See L<PostScript::File/newpage> and
-L<PostScript::File/set_page_label>.
-
-=head3 add_function( name, code )
-
-Add functions to the underlying PostScript::File object.  See L<PostScript::File/add_function> for details.
-
-=head3 add_to_page( [page], code )
-
-Add postscript code to the underlying PostScript::File object.  See L<PostScript::File/add_to_page> for details.
+Output the chart as a file.  See L<PostScript::Graph::File/output>.
 
 =cut
 
-sub output { my ($o, @params) = @_; $o->{ps}->output( @params ); }
-sub newpage { my ($o, @params) = @_; $o->{ps}->newpage( @params ); }
-sub add_function { my ($o, @params) = @_; $o->{ps}->add_function( @params ); }
-sub add_to_page { my ($o, @params) = @_; $o->{ps}->add_to_page( @params ); }
+sub newpage { 
+    my ($o, @params) = @_; 
+    $o->{ps}->newpage( @params );
+}
 
+=head3 newpage( [page] )
+
+Start a new page in the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/newpage> and
+L<PostScript::Graph::File/set_page_label>.
+
+=cut
+
+sub add_function {
+    my ($o, @params) = @_; 
+    $o->{ps}->add_function( @params );
+}
+
+=head3 add_function( name, code )
+
+Add functions to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_function> for details.
+
+=cut
+
+sub add_to_page {
+    my ($o, @params) = @_; 
+    $o->{ps}->add_to_page( @params );
+}
+
+=head3 add_to_page( [page], code )
+
+Add postscript code to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_to_page> for details.
+
+=cut
+
+sub graph_area { 
+    my $o = shift; 
+    return ($o->{ch}{gx0}, $o->{ch}{gy0}, $o->{ch}{gx1}, $o->{ch}{gy1}); 
+}
+    
 =head2 Result methods
 
 These fall into three groups according to their return value.  B<_area> methods return an array of four values
@@ -1681,9 +1928,55 @@ this time representing an (x, y) value.  The underlying constants are also acces
 
 Return an array holding (x0, y0, x1, y1), the bounding box of the graph area.
 
+=cut
+
+sub key_area { 
+    my $o = shift; 
+    my $left = $o->{ch}{gx1} + $o->{ch}{rmargin};
+    my $right = $o->{ch}{right} - $o->{ch}{spc} - 1;
+    my $top = $o->{ch}{top} - $o->{ch}{spc};
+    my $bottom = $o->{ch}{bottom} + $o->{ch}{spc};
+    return ($left, $bottom, $right, $top); 
+}
+    
 =head3 key_area
 
 Return an array holding (x0, y0, x1, y1), the bounding box of the area allocated for the key, if any. 
+
+=cut
+
+sub vertical_bar_area {
+    my ($o, $bar, $y) = @_;
+    my ($left, $bottom, $right, $top);
+    if (defined $o->{x}{labels}) {
+	$left = $o->{ch}{gx0} + ($bar + 0.5) * $o->{x}{markgap};
+	$right = $left + $o->{x}{markgap};
+    } else {
+	$left = $o->{ch}{gx0} + $bar * $o->{x}{markgap};
+	$right = $left + $o->{x}{markgap};
+    }
+    if (defined $y) {
+	$bottom = $o->{y}{l2pc};
+	$top = $y * $o->{y}{l2pm} + $o->{y}{l2pc};
+	# reverse if y < 0
+	if ($top < $bottom) {
+	    my $temp = $top;
+	    $top = $bottom;
+	    $bottom = $temp;
+	}
+	# clip if out of graph area
+	my $gy0 = $o->{ch}{gy0};
+	my $gy1 = $o->{ch}{gy1};
+	$top    = $gy0 if ($top    < $gy0);
+	$bottom = $gy0 if ($bottom < $gy0);
+	$top    = $gy1 if ($top    > $gy1);
+	$bottom = $gy1 if ($bottom > $gy1);
+    } else {
+    $bottom = $o->{ch}{gy0};
+    $top = $o->{ch}{gy1};
+    }
+    return ($left, $bottom, $right, $top);
+}
 
 =head3 vertical_bar_area
 
@@ -1693,6 +1986,18 @@ Return the physical coordinates of a barchart bar.  Use as:
     @area = vertical_bar_area( $bar, $y )
 
 Where C<$bar> is the 0 based number of the bar and C<$y> is an optional coordinate indicating the top of the bar.
+
+=cut
+
+sub horizontal_bar_area {
+    my ($o, $bar, $x) = @_;
+    $x = $o->{x}{lhi} unless (defined $x);
+    my $left = $o->{ch}{gx0};
+    my $bottom = $o->{ch}{gy0} + $bar * $o->{y}{markgap};
+    my $right = $x * $o->{x}{l2pm} + $o->{x}{l2pc};
+    my $top = $bottom + $o->{y}{markgap};
+    return ($left, $bottom, $right, $top);
+}
 
 =head3 horizontal_bar_area
 
@@ -1705,43 +2010,21 @@ Where C<$bar> is the 0 based number of the bar and C<$x> is an optional coordina
 
 =cut
 
-sub graph_area { 
-    my $o = shift; 
-    return ($o->{ch}{gx0}, $o->{ch}{gy0}, $o->{ch}{gx1}, $o->{ch}{gy1}); 
-}
-    
-sub key_area { 
-    my $o = shift; 
-    my $left = $o->{ch}{gx1} + $o->{ch}{rmargin};
-    my $right = $o->{ch}{right} - $o->{ch}{spc} - 1;
-    my $top = $o->{ch}{top} - $o->{ch}{spc};
-    my $bottom = $o->{ch}{bottom} + $o->{ch}{spc};
-    return ($left, $bottom, $right, $top); 
-}
-    
-sub vertical_bar_area {
-    my ($o, $bar, $y) = @_;
-    $y = $o->{y}{lhi} unless (defined $y);
-    my $left = $o->{ch}{gx0} + $bar * $o->{x}{markgap};
-    my $bottom = $o->{ch}{gy0};
-    my $right = $left + $o->{x}{markgap};
-    my $top = $y * $o->{y}{l2pm} + $o->{y}{l2pc};
-    return ($left, $bottom, $right, $top);
-}
-
-sub horizontal_bar_area {
-    my ($o, $bar, $x) = @_;
-    $x = $o->{x}{lhi} unless (defined $x);
-    my $left = $o->{ch}{gx0};
-    my $bottom = $o->{ch}{gy0} + $bar * $o->{y}{markgap};
-    my $right = $x * $o->{x}{l2pm} + $o->{x}{l2pc};
-    my $top = $bottom + $o->{y}{markgap};
-    return ($left, $bottom, $right, $top);
+sub physical_point { 
+    my ($o, $x, $y) = @_; 
+    return ($x * $o->{x}{l2pm} + $o->{x}{l2pc}, $y * $o->{y}{l2pm} + $o->{y}{l2pc});
 }
 
 =head3 physical_point( x, y )
 
 Return the physical, native postscript, coordinates corresponding to the logical point (x, y) on the graph.
+
+=cut
+
+sub logical_point { 
+    my ($o, $x, $y) = @_; 
+    return ($x * $o->{x}{p2lm} + $o->{x}{p2lc}, $y * $o->{y}{p2lm} + $o->{y}{p2lc});
+}
 
 =head3 logical_point( px, py )
 
@@ -1749,27 +2032,43 @@ Return the logical, graph, coordinates corresponding to a point on the postscrip
 
 =cut
 
-sub physical_point { 
-    my ($o, $x, $y) = @_; 
-    return ($x * $o->{x}{l2pm} + $o->{x}{l2pc}, $y * $o->{y}{l2pm} + $o->{y}{l2pc});
-}
-
-sub logical_point { 
-    my ($o, $x, $y) = @_; 
-    return ($x * $o->{x}{p2lm} + $o->{x}{p2lc}, $y * $o->{y}{p2lm} + $o->{y}{p2lc});
+sub px { 
+    my ($o, $v) = @_; 
+    return $v * $o->{x}{l2pm} + $o->{x}{l2pc}; 
 }
 
 =head3 px
 
 Use as physical_x = $gp->ps( logical_x )
 
+=cut
+
+sub py { 
+    my ($o, $v) = @_; 
+    return $v * $o->{y}{l2pm} + $o->{y}{l2pc}; 
+}
+
 =head3 py
 
 Use as physical_y = $gp->ps( logical_y )
 
+=cut
+
+sub lx { 
+    my ($o, $v) = @_; 
+    return $v * $o->{x}{p2lm} + $o->{x}{p2lc}; 
+}
+
 =head3 lx
 
 Use as logical_x = $gp->ps( physical_x )
+
+=cut
+
+sub ly { 
+    my ($o, $v) = @_; 
+    return $v * $o->{y}{p2lm} + $o->{y}{p2lc}; 
+}
 
 =head3 py
 
@@ -1777,13 +2076,6 @@ Use as logical_y = $gp->ps( physical_y )
 
 =cut
 
-sub px { my ($o, $v) = @_; return $v * $o->{x}{l2pm} + $o->{x}{l2pc}; }
-sub py { my ($o, $v) = @_; return $v * $o->{y}{l2pm} + $o->{y}{l2pc}; }
-sub lx { my ($o, $v) = @_; return $v * $o->{x}{p2lm} + $o->{x}{p2lc}; }
-sub ly { my ($o, $v) = @_; return $v * $o->{y}{p2lm} + $o->{y}{p2lc}; }
-
-#=============================================================================
-		    
 =head1 BUGS
 
 Very likely.  This is still alpha software and has only been tested in very predictable conditions.
@@ -1794,8 +2086,9 @@ Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::File>, L<PostScript::GraphStyle>, L<PostScript::GraphKey>.
+L<PostScript::Graph::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Key>.
 
 =cut
 
+##############################################################################
 1;

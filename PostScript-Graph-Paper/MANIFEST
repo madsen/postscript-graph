@@ -1,10 +1,11 @@
 Changes
-GraphPaper.pm
+Paper.pm
 Makefile.PL
 MANIFEST
 README
-t/01defaults.pl
-t/01defaults.t
-t/02barchart.pl
-t/02barchart.t
+t/pa01simple.t
+t/pa02defaults.pl
+t/pa02defaults.t
+t/pa03barchart.pl
+t/pa03barchart.t
 
