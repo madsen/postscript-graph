@@ -1,0 +1,6 @@
+Revision history for Perl extension PostScript-GraphStyle-0.01.
+
+0.01  Fri Oct  4 18:26:12 2002
+	- original version; created by h2xs 1.21 with options
+		-X -n PostScript-GraphStyle-0.01
+

@@ -1,0 +1,30 @@
+PostScript/GraphStyle version 0.01
+==================================
+
+This module provides support for styles of lines, points, bars and other objects
+drawn on a chart.  It accompanies PostScript::GraphPaper and
+PostScript::GraphKey and is not intended for independent use.  See one of the
+PostScript::...Chart modules for a top-level object.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make install
+
+There are currently no installation tests.
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  PostScript::File 0.04
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2002 Christopher P Willmot, all rights reserved.
+This module is published under the Perl Artistic licence, a copy of which may be
+found in the perl distribution or on http://www.perl.org.
+
