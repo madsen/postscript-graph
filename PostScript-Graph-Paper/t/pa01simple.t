@@ -1,6 +1,6 @@
 use Test;
 BEGIN { plan tests => 5 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 use PostScript::Graph::Paper;
 ok(1); # module found
 
@@ -11,6 +11,7 @@ my $name = "pa01simple";
 $ps->output( $name, "test-results" );
 ok(1); # survived so far
 my $file = check_file( "$name.ps", "test-results" );
+print STDERR "\nUse 'gv' or similar to check results file:\n$file\n";
 ok($file);
 ok(-e $file);
 

@@ -1,9 +1,16 @@
 package PostScript::Graph::Paper;
 use strict;
 use warnings;
-use PostScript::Graph::File qw(check_file array_as_string str);
+use PostScript::File qw(check_file array_as_string str);
 
-our $VERSION = '0.03';
+our $VERSION = '0.06';
+
+# bit values for flags
+our $fl_bar    = 1;
+our $fl_rotate = 2;
+our $fl_center = 4;
+our $fl_offset = 8;
+our $fl_show   = 16;
 
 ### Introduction #############################################################
 
@@ -21,7 +28,7 @@ Let the module create its own postscript file:
     
     my $pg = new PostScript::Graph::Paper( 
 	    file => { landscape => 1 },
-	    paper => { title => "Blank grid" } );
+	    layout => { title => "Blank grid" } );
 		
     $pg->output("testfile");
 
@@ -30,9 +37,9 @@ Let the module create its own postscript file:
 Add the chart to an existing postscript file:
  
     use PostScript::Graph::Paper;
-    use PostScript::Graph::File;
+    use PostScript::File;
     
-    my $ps = new PostScript::Graph::File( 
+    my $ps = new PostScript::File( 
 			left      => 40,
 			right     => 40,
 			top       => 30,
@@ -42,7 +49,7 @@ Add the chart to an existing postscript file:
 	
     new PostScript::Graph::Paper(
 	  file   => $ps,
-	  paper => { title => 
+	  layout => { title => 
 			"Experimental results" },
 	  x_axis => { high  => 10,
 		      title => 
@@ -59,7 +66,7 @@ Create a bar chart layout:
     use PostScript::Graph::Paper;
 
     new PostScript::Graph::Paper(
-	  paper  => { title => 
+	  layout  => { title => 
 			"Survey" },
 	  x_axis => { labels => [
 		"Men", "Women", 
@@ -74,7 +81,7 @@ Create a bar chart layout:
     new PostScript::Graph::Paper(
 	file => $ps_file,
 	
-	paper => {
+	layout => {
 	    bottom_edge	    => 30,
 	    top_edge	    => 30,
 	    left_edge	    => 30,
@@ -101,6 +108,7 @@ Create a bar chart layout:
 	    heavy_width	    => 1,
 	    mid_width	    => 0.8,
 	    light_width	    => 0.25,
+	    no_drawing      => 0,
 	},
 
 	x_axis => {
@@ -128,6 +136,7 @@ Create a bar chart layout:
 	    center	=> 1,
 	    offset	=> 1,
 	    rotate	=> 1,
+	    draw_fn     => "myxdraw",
 	},
 
 	y_axis => {
@@ -145,7 +154,7 @@ something useful, see
     PostScript::Graph::XY
 
 An area of graph paper is created on a postscript page.  X and Y axes are labelled and there are facilities to add
-a title and key.  This is written to a PostScript::Graph::File object (automatically created if not supplied)
+a title and key.  This is written to a PostScript::File object (automatically created if not supplied)
 which can then be output.  It is intended to be a static object - once the parameters are set there is little
 point in changing them - so all options are set in the contructor.
    
@@ -165,8 +174,8 @@ sub new {
     my $o = {};
     bless( $o, $class );
     
-    # note or initialize PostScript::Graph::File object
-    if (ref($opt->{file}) eq "PostScript::Graph::File") {
+    ## note or initialize PostScript::File object
+    if (ref($opt->{file}) eq "PostScript::File") {
 	$o->{ps} = $opt->{file};
     } else {
 	my $fileopts = (defined $opt->{file}) ? $opt->{file} : {};
@@ -175,10 +184,11 @@ sub new {
 	$fileopts->{top}    = 36 unless (defined $fileopts->{top});
 	$fileopts->{bottom} = 36 unless (defined $fileopts->{bottom});
 	$fileopts->{errors} = 1 unless (defined $fileopts->{errors});
-	$o->{ps} = new PostScript::Graph::File($fileopts);
+	$o->{ps} = new PostScript::File($fileopts);
     }
 
-    $o->init_paper($opt);
+    ## handle options
+    $o->init_layout($opt);
     $o->init_scale_options("x", $opt->{x_axis});
     $o->init_scale_options("y", $opt->{y_axis});
     
@@ -194,7 +204,7 @@ sub new {
     }
     
     $o->common_code_for_scales();
-    $o->draw_scales();
+    $o->draw_scales() unless ($opt->{layout}{no_drawing});
     
     return $o;
 }
@@ -218,7 +228,7 @@ return the string given and the option would be documented as C<axis_title>.
 Example 1
 
     my $gp = new PostScript::Graph::Paper(
-	    paper  => {
+	    layout  => {
 		title  => "Bar chart",
 		right_edge => 500,
 		key_width  => 100,
@@ -245,7 +255,7 @@ Example 2
 		landscape => 1,
 		errors => 1,
 	    },
-	    paper => {
+	    layout => {
 		font_color => 1,
 		heading_height => 0,
 		left_axis_font_size => 0,
@@ -274,17 +284,17 @@ sub file {
 
 =head2 PostScript Options
 
-The PostScript::Graph::File object which recieves the grid may either be an existing one or the module can create one for
+The PostScript::File object which recieves the grid may either be an existing one or the module can create one for
 you.  Use C<file> to declare a pre-existing object, or C<file> to control how the new one is created.
 
 =head3 file
 
-This may be either a PostScript::Graph::File object or a options in hash key/value format.  If options are given, a new
-PostScript::Graph::File object is created.
+This may be either a PostScript::File object or a options in hash key/value format.  If options are given, a new
+PostScript::File object is created.
 
     Example 1
 
-    $psf = new PostScript::Graph::File();
+    $psf = new PostScript::File();
     
     $pg  = new PostScript::Graph::Paper(
 		file => $psf );
@@ -306,10 +316,180 @@ PostScript::Graph::File object is created.
 
 ### Chart options ############################################################
 
-sub init_paper {
+ sub layout_left_edge        { shift()->{ch}{left}; }
+ sub layout_bottom_edge      { shift()->{ch}{bottom}; }
+ sub layout_right_edge       { shift()->{ch}{right}; }
+ sub layout_top_edge         { shift()->{ch}{top}; }
+ sub layout_right_margin     { shift()->{ch}{rmargin}; }
+ sub layout_top_margin       { shift()->{ch}{tmargin}; }
+ sub layout_spacing          { shift()->{ch}{spc}; }
+ sub layout_dots_per_inch    { shift()->{ch}{dpi}; }
+ sub layout_heading          { shift()->{ch}{title}; }
+ sub layout_heading_height   { shift()->{ch}{head}; }
+ sub layout_key_width        { shift()->{ch}{keyw}; }
+ sub layout_background       { color_as_array( shift()->{ch}{bgnd} ); }
+ sub layout_color            { color_as_array( shift()->{ch}{color} ); }
+ sub layout_heavy_color      { color_as_array( shift()->{ch}{heavycol} ); }
+ sub layout_mid_color        { color_as_array( shift()->{ch}{midcol} ); }
+ sub layout_light_color      { color_as_array( shift()->{ch}{lightcol} ); }
+ sub layout_heavy_width      { shift()->{ch}{heavyw}; }
+ sub layout_mid_width        { shift()->{ch}{midw}; }
+ sub layout_light_width      { shift()->{ch}{lightw}; }
+ sub layout_font             { shift()->{ch}{font}; }
+ sub layout_font_size        { shift()->{ch}{fontsize}; }
+ sub layout_font_color       { color_as_array( shift()->{ch}{fontcol} ); }
+ sub layout_heading_font     { shift()->{ch}{hfont}; }
+ sub layout_heading_font_size { shift()->{ch}{hsize}; }
+ sub layout_heading_font_color { color_as_array( shift()->{ch}{hcol} ); }
+
+=head2 Chart Options
+
+These are all set within a C<layout> option given to the constructor.  Remove the initial C<layout_> to get the
+option name.  All values are in PostScript native units (72 = 1 inch).
+
+    Example
+
+    $pg = new PostScript::Graph::Paper(
+	    layout => {  right_edge   => 600, 
+			heavy_color  => [0, 0, 0.8],
+			light_color  => 0.6,
+			font         => "Courier",
+			title_font_size => 14,
+			right_margin => 20,
+			spacing	     => 4 } );
+
+    $pg->layout_font() would return "Courier".
+		    
+=head3 layout_bottom_edge
+
+The bottom boundary of the whole chart area.
+
+=head3 layout_background
+
+Background color.
+
+=head3 layout_color
+
+Default colour for all grid lines.  All colours can be either a greyscale value or an array of RGB values.  All
+values vary from 0 = black to 1 = brightest.  (Default: 0.5)
+
+    Example
+
+    layout => {	background  => [ 0.95, 0.95, 0.85 ],
+		color	    => [ 0, 0.2, 0.8 ],
+		light_color => 0.85 }
+
+    Grid lines will be a blue shade on a beige background, 
+    except the lightest lines which will be light grey.
+
+=head3 layout_dots_per_inch
+
+Marks are spaced at a multiple of this value.  If this does not match the physical output device, the appearance
+can be somewhat ragged.  (Default: 300)
+
+=head3 layout_font
+
+Default font for everything except titles.  (Default: "Helvetica")
+
+=head3 layout_font_color
+
+Default colour for all fonts.  (Default: 0)
+
+=head3 layout_font_size
+
+Default font size for everything except the title font.  (Default: 10)
+
+=head3 layout_heading
+
+The title above the grid.  (Default: "")
+
+=head3 layout_heading_font
+
+Font for the main heading above the graph.  (Default: "Helvetica-Bold")
+
+=head3 layout_heading_font_color
+
+Colour for main heading.  (Defaults to C<font_color>)
+
+=head3 layout_heading_font_size
+
+Size for main heading.  (Default: 12)
+
+=head3 layout_heading_height
+
+Size of area above the graph holding the main title and the y axis title.  (Defaults to just enough space)
+
+=head3 layout_heavy_color
+
+The colour of the major, labelled, lines.  (Defaults to C<color>)
+
+=head3 layout_heavy_width
+
+Width of the labelled lines.  (Default: 0.75)
+
+=head3 layout_key_width
+
+Width of box at the right of the graph, allocated for the key.  If this is 0, no key box is drawn.  (Default: 0)
+
+The key is drawn by a seperate PostScript::Graph::Key object.  This merely allocates space within the chart edges.
+
+=head3 layout_left_edge
+
+The left boundary of the whole paper area.
+
+=head3 layout_light_color
+
+Colour of the minor, unlabelled, lines. (Defaults to C<color>)
+
+=head3 layout_light_width
+
+Width of the lightest lines.  (Default: 0.25)
+
+=head3 layout_mid_color
+
+A scale of 10 will be divided into two lots of 5 seperated by a slightly heavier line at the 5 mark.  This is the
+'mid' line.  (Defaults to C<color>)
+
+=head3 layout_mid_width
+
+Width of the mid-lines, see </mid_color>.  (Default: 0.75)
+
+=head3 no_drawing
+
+If true, the call to C<draw_scales> is not carried out in the constructor, allowing some tinkering with labels
+etc. before comitting to postscript.  The only way to do this is to access the objects data directly.  Use with
+caution.  (Default: 0)
+
+=head3 layout_right_edge
+
+The right boundary of the whole chart area.
+
+=head3 layout_right_margin
+
+Space at the right hand side of the graph area, taken up by part of the last label.  (Default: 15)
+
+=head3 layout_spacing
+
+Increasing this value seperates out the various parts of the chart, like leading added to text.  (Default: 0)
+
+=head3 layout_sub_divisons
+
+Used by PostScript::Graph::Bar to signal the number of series per label.  Not appropriate for anything else.
+
+=head3 layout_top_edge
+
+The top boundary of the whole chart area.
+
+=head3 layout_top_margin
+
+Space above the graph area taken up by part of the topmost y label.  (Default: 5)
+
+=cut
+
+sub init_layout {
     my ($o, $opt) = @_;
-    $opt->{paper} = {} unless (defined $opt->{paper});
-    my $r = $opt->{paper};
+    $opt->{layout} = {} unless (defined $opt->{layout});
+    my $r = $opt->{layout};
     $o->{ch}{left} = 0;
     my $ch = $o->{ch};
 
@@ -376,448 +556,56 @@ sub init_paper {
 } 
 # Internal method, intializing whole chart area
 
-=head2 Chart Options
-
-These are all set within a C<paper> option given to the constructor.  Remove the initial C<paper_> to get the
-option name.  All values are in PostScript native units (72 = 1 inch).
-
-    Example
-
-    $pg = new PostScript::Graph::Paper(
-	    paper => {  right_edge   => 600, 
-			heavy_color  => [0, 0, 0.8],
-			light_color  => 0.6,
-			font         => "Courier",
-			title_font_size => 14,
-			right_margin => 20,
-			spacing	     => 4 } );
-
-    $pg->paper_font() would return "Courier".
-		    
-=head3 paper_bottom_edge
-
-The bottom boundary of the whole chart area.
-
-=head3 paper_background
-
-Background color.
-
-=head3 paper_color
-
-Default colour for all grid lines.  All colours can be either a greyscale value or an array of RGB values.  All
-values vary from 0 = black to 1 = brightest.  (Default: 0.5)
-
-    Example
-
-    paper => {	background  => [ 0.95, 0.95, 0.85 ],
-		color	    => [ 0, 0.2, 0.8 ],
-		light_color => 0.85 }
-
-    Grid lines will be a blue shade on a beige background, 
-    except the lightest lines which will be light grey.
-
-=head3 paper_dots_per_inch
-
-Marks are spaced at a multiple of this value.  If this does not match the physical output device, the appearance
-can be somewhat ragged.  (Default: 300)
-
-=head3 paper_font
-
-Default font for everything except titles.  (Default: "Helvetica")
-
-=head3 paper_font_color
-
-Default colour for all fonts.  (Default: 0)
-
-=head3 paper_font_size
-
-Default font size for everything except the title font.  (Default: 10)
-
-=head3 paper_heading
-
-The title above the grid.  (Default: "")
-
-=head3 paper_heading_font
-
-Font for the main heading above the graph.  (Default: "Helvetica-Bold")
-
-=head3 paper_heading_font_color
-
-Colour for main heading.  (Defaults to C<font_color>)
-
-=head3 paper_heading_font_size
-
-Size for main heading.  (Default: 12)
-
-=head3 paper_heading_height
-
-Size of area above the graph holding the main title and the y axis title.  (Defaults to just enough space)
-
-=head3 paper_heavy_color
-
-The colour of the major, labelled, lines.  (Defaults to C<color>)
-
-=head3 paper_heavy_width
-
-Width of the labelled lines.  (Default: 0.75)
-
-=head3 paper_key_width
-
-Width of box at the right of the graph, allocated for the key.  If this is 0, no key box is drawn.  (Default: 0)
-
-The key is drawn by a seperate PostScript::Graph::Key object.  This merely allocates space within the chart edges.
-
-=head3 paper_left_edge
-
-The left boundary of the whole paper area.
-
-=head3 paper_light_color
-
-Colour of the minor, unlabelled, lines. (Defaults to C<color>)
-
-=head3 paper_light_width
-
-Width of the lightest lines.  (Default: 0.25)
-
-=head3 paper_mid_color
-
-A scale of 10 will be divided into two lots of 5 seperated by a slightly heavier line at the 5 mark.  This is the
-'mid' line.  (Defaults to C<color>)
-
-=head3 paper_mid_width
-
-Width of the mid-lines, see </mid_color>.  (Default: 0.75)
-
-=head3 paper_right_edge
-
-The right boundary of the whole chart area.
-
-=head3 paper_right_margin
-
-Space at the right hand side of the graph area, taken up by part of the last label.  (Default: 15)
-
-=head3 paper_spacing
-
-Increasing this value seperates out the various parts of the chart, like leading added to text.  (Default: 0)
-
-=head3 paper_sub_divisons
-
-Used by PostScript::Graph::Bar to signal the number of series per label.  Not appropriate for anything else.
-
-=head3 paper_top_edge
-
-The top boundary of the whole chart area.
-
-=head3 paper_top_margin
-
-Space above the graph area taken up by part of the topmost y label.  (Default: 5)
-
-=cut
-
-sub paper_left_edge            { shift()->{ch}{left}; }
-sub paper_bottom_edge          { shift()->{ch}{bottom}; }
-sub paper_right_edge           { shift()->{ch}{right}; }
-sub paper_top_edge             { shift()->{ch}{top}; }
-sub paper_right_margin         { shift()->{ch}{rmargin}; }
-sub paper_top_margin           { shift()->{ch}{tmargin}; }
-sub paper_spacing              { shift()->{ch}{spc}; }
-sub paper_dots_per_inch        { shift()->{ch}{dpi}; }
-sub paper_heading              { shift()->{ch}{title}; }
-sub paper_heading_height       { shift()->{ch}{head}; }
-sub paper_key_width            { shift()->{ch}{keyw}; }
-sub paper_background           { color_as_array( shift()->{ch}{bgnd} ); }
-sub paper_color                { color_as_array( shift()->{ch}{color} ); }
-sub paper_heavy_color          { color_as_array( shift()->{ch}{heavycol} ); }
-sub paper_mid_color            { color_as_array( shift()->{ch}{midcol} ); }
-sub paper_light_color          { color_as_array( shift()->{ch}{lightcol} ); }
-sub paper_heavy_width          { shift()->{ch}{heavyw}; }
-sub paper_mid_width            { shift()->{ch}{midw}; }
-sub paper_light_width          { shift()->{ch}{lightw}; }
-sub paper_font                 { shift()->{ch}{font}; }
-sub paper_font_size            { shift()->{ch}{fontsize}; }
-sub paper_font_color           { color_as_array( shift()->{ch}{fontcol} ); }
-sub paper_heading_font         { shift()->{ch}{hfont}; }
-sub paper_heading_font_size    { shift()->{ch}{hsize}; }
-sub paper_heading_font_color   { color_as_array( shift()->{ch}{hcol} ); }
-sub color_as_array ($) {
-    my $col = shift;
-    my ($r, $g, $b) = ($col =~ /\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
-    $col = [ $r, $g, $b ] if (defined $b);
-    return $col;
-}
-    
 ### Axis options #############################################################
 
-sub init_scale_options {
-    my ($o, $axis, $r) = @_;
-    $o->{$axis}{llo} = 0;
-    my $sc = $o->{$axis};
-    my $ch = $o->{ch};
-    $r = {} unless (defined $r);
-    
-    # collect options and set defaults
-    $sc->{llo}       = defined($r->{low})           ? $r->{low}           : 0;
-    $sc->{lhi}       = defined($r->{high})          ? $r->{high}          : 100;
-    $sc->{labelgap}  = defined($r->{label_gap})     ? $r->{label_gap}     : 30;	    # gap between labels
-    $sc->{smallest}  = defined($r->{smallest})      ? $r->{smallest}      : 3 * 72/$ch->{dpi};	# 3 dots
-    $sc->{title}     = defined($r->{title})         ? $r->{title}         : ($sc->{title} || "");
-    if ($axis eq "x") {
-	$sc->{phi} = $ch->{gx1};
-	$sc->{plo} = $ch->{gx0};
-    } elsif ($axis eq "y") {
-	$sc->{phi} = $ch->{gy1};
-	$sc->{plo} = $ch->{gy0};
-    } else {
-	die "init_scale(): axis not x or y\nStopped";
-    }
-    if (defined $r->{labels}) {
-	if (($sc->{flags} & 4) == 4) {
-	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
-	} else {
-	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{bgnd};
-	}
-	$sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{bgnd};
-	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{bgnd};
-    } else {
-	$sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
-	$sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{midcol};
-	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{lightcol};
-    }
-    $sc->{heavyw}   = defined($r->{heavy_width}) ? str($r->{heavy_width}) : $ch->{heavyw};
-    $sc->{midw}     = defined($r->{mid_width})   ? $r->{mid_width}        : $ch->{midw};
-    $sc->{lightw}   = defined($r->{light_width}) ? $r->{light_width}      : $ch->{lightw};
-
-
-}
-# Internal method, reading scale options
-
-sub init_bars {
-    my ($o, $axis, $r) = @_;
-    my $sc = $o->{$axis};
-    my $ch = $o->{ch};
-    $r = {} unless (defined $r);
-
-    #print join(",", @{$sc->{labels}}) . "\n";
-    my @labels;
-    foreach my $label (@{$sc->{labels}}) {
-	push @labels, "($label)";
-    }
-    unless ($labels[$#labels] eq "()") {
-	push @labels, "()";
-    }
-    
-    my $subdivs = defined($r->{sub_divisions}) ? $r->{sub_divisions} : 1;
-    $sc->{markmul} = 4;
-    $sc->{markgap} = ($sc->{phi} - $sc->{plo})/($#labels * $subdivs);
-    $sc->{markcen} = $subdivs > 1 ? $sc->{markgap} * ($subdivs-1) : $sc->{markgap};
-    my $n = ($sc->{flags} & 4) ? $#labels - 1 : $#labels; 
-    $sc->{factors} = array_as_string( ($n, $subdivs) );
-    $sc->{labels}  = array_as_string(@labels);
-    $sc->{ldepth}  = 0;
-    #print "$axis labels   = $sc->{labels}\n";
-
-    $sc->{labsreq} = $#labels;
-    $sc->{llo}     = 0;
-    $sc->{lhi}     = $#labels;
-    $sc->{l2pm}    = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
-    $sc->{l2pc}    = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
-    $sc->{p2lm}    = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
-    $sc->{p2lc}    = $sc->{llo} - $sc->{p2lm} * $sc->{plo};
-    #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
-    #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
-
-}
-# Internal method, intializing one barchart axis
-
-sub init_scale {
-    my ($o, $axis, $r) = @_;
-    my $sc = $o->{$axis};
-    my $ch = $o->{ch};
-    $r = {} unless (defined $r);
-
-    my $sclrange = $sc->{lhi} - $sc->{llo};
-    my $scprange = $sc->{phi} - $sc->{plo};
-    $sc->{labsreq} = int($scprange/$sc->{labelgap});
-    $sc->{labsreq} = defined($r->{labels_req}) ? $r->{labels_req} : $sc->{labsreq}; # allow override
-    $sc->{labsreq} = 1 if $sc->{labsreq} < 1;
-
-    # calculate number of major marks to use
-    #print "$axis requested: physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
-    #print "$axis            lrange=$sclrange, prange=$scprange, labelsreq=$sc->{labsreq}, smallest=$sc->{smallest}\n";
-    my $lbase10 = $sclrange > 0 ? log($sclrange)/log(10) : 0;
-    my $mult = 10 ** int($lbase10);
-    my $mant = $sclrange/$mult;
-    my @scale  = (0.2, 0.5, 1, 2, 5);
-    my @subdiv = (  2,   5, 2, 5, 2);
-    my ($best, $scale, $nmarks, $subdivs) = 99;
-    for (my $i = 0; $i <= $#scale; $i++) {
-	my $smant = $mant*$scale[$i];
-	my $smult = $mult/$scale[$i];
-	my $score = abs($smant - $sc->{labsreq});
-	if ($score < $best) {
-	    $best = $score;
-	    $nmarks = $smant;
-	    $scale = $smult;
-	    $subdivs = $subdiv[$i];
-	}
-    }
-    
-    # include outer marks as required
-    my $llo = int($sc->{llo}/$scale) * $scale;
-    $nmarks++ if ($sc->{llo} >= 0 and $llo < $sc->{llo});
-    $nmarks = ($nmarks > int($nmarks)) ? int($nmarks)+1 : int($nmarks);
-    if ($sc->{llo} < 0) {
-	$llo -= $scale;
-	$nmarks++;
-    }
-    $nmarks = 1 if $nmarks < 1;
-    $sc->{llo} = $llo;
-    $sc->{lhi} = $llo + $nmarks * $scale;
-    #print "$axis            nmarks=$nmarks, scale=$scale, subdivs=$subdivs\n";
-    
-    # calculate subdivisions of subdivisions ...
-    my @factor = ($nmarks);
-    my @spread = ($scale);
-    my $nphys = int($scprange/$sc->{smallest});
-    my $rem = $nphys/$nmarks;
-    while ($rem > $subdivs) {
-	$rem /= $subdivs;
-	$nmarks *= $subdivs;
-	$scale /= $subdivs;
-	push @factor, $subdivs;
-	push @spread, $scale;
-	$subdivs = ($subdivs == 2) ? 5 : 2;
-    }
-    if ($rem/5 > 1) {
-	$nmarks *= 5;
-	$scale /= 5;
-	push @factor, 5;
-	push @spread, $scale;
-    } elsif ($rem/2 > 1) {
-	$nmarks *= 2;
-	$scale /= 2;
-	push @factor, 2;
-	push @spread, $scale;
-    }
-    $sc->{factors} = array_as_string( @factor );    # nesting of (sub)divisions
-    $sc->{spreads} = [ @spread ];		    # logical size of those (sub)divisions
-    $sc->{markgap} = $scprange/$nmarks;	    # physical size between smallest marks
-    $sc->{markcen} = $sc->{markgap};
-    #print "$axis factors  = [", join(", ", @factor), "],   markgap=$sc->{markgap}\n";
-
-    # calculate physical width of all the marks 
-    my $marks = 1;
-    foreach my $factor (@factor) { $marks *= $factor; }
-    $sc->{phi} = $sc->{plo} + $marks * $sc->{markgap};
-
-    # calculate depth for printed labels
-    my $nlabels = 1;
-    my $last = 0;
-    $sc->{ldepth} = 0;
-    for (my $depth = 0; $depth <= $#factor; $depth++) {
-	$last = $nlabels;
-	$nlabels *= $factor[$depth];
-	if ($nlabels >= $sc->{labsreq}) {
-	    if (abs($last - $sc->{labsreq}) < abs($nlabels - $sc->{labsreq})) {
-		$nlabels = $last;
-		$sc->{ldepth} = $depth - 1;
-	    } else {
-		$sc->{ldepth} = $depth;
-	    }
-	    last;
-	}
-    }
-    #print "$axis spreads  = [", join(", ", @spread), "],   depth=$sc->{ldepth}\n";
-    $sc->{markmul} = ($#factor >= 0) ? ($sc->{markmax} - $sc->{markmin})/($#factor + 1) : 0;
-    
-    # now for the actual labels
-    my @count = ();
-    foreach my $f (@factor) { push @count, 0; }
-    my $depth = $sc->{ldepth};
-    my $value = $sc->{llo};
-    my @labels = ($value);
-    while ($depth >= 0) {
-	for ($depth = $sc->{ldepth}; $depth >= 0; $depth--) {
-	    ++$count[$depth];
-	    last if ($count[$depth] < $factor[$depth]);
-	    $count[$depth] = 0;
-	}
-	# ?better to recalc than rely on multiple adding?
-	$value = $sc->{llo};
-	for (my $i = 0; $i <= $sc->{ldepth}; $i++) {
-	    $value += $count[$i] * $spread[$i];
-	}
-	push @labels, $value;
-    }
-    pop @labels;
-    push @labels, $sc->{lhi};
-    $sc->{labels} = array_as_string( @labels );
-    #print "$axis labels   = $sc->{labels}\n";
-    #print "$axis produced : physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
-
-    # y = mx + c values
-    $sc->{l2pm} = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
-    $sc->{l2pc} = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
-    $sc->{p2lm} = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
-    $sc->{p2lc} = $sc->{llo} - $sc->{p2lm} * $sc->{plo};
-    #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
-    #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
-}
-# Internal method, initializing one scale
-# expects either ("x", $opts{x_axis}) or ("y", $opts{y_axis})
-# $o->{ch}{...} must already exist
-
-sub init_scale_sizes {
-    my ($o, $axis, $r) = @_;
-    $r = {} unless (defined $r);
-    $o->{$axis}{markmin} = 0 unless (defined $o->{$axis}{markmin});
-    my $sc = $o->{$axis};
-    my $ch = $o->{ch};
-    $r = {} unless (defined $r);
-    
-    $sc->{markmin}  = defined($r->{mark_min})      ? $r->{mark_min}        : 0.5;
-    $sc->{markmax}  = defined($r->{mark_max})      ? $r->{mark_max}        : 8;
-    $sc->{font}     = defined($r->{font})          ? $r->{font}            : $ch->{font};
-    $sc->{fsize}    = defined($r->{font_size})     ? $r->{font_size}       : $ch->{fontsize};
-    $sc->{fcol}     = defined($r->{font_color})    ? str($r->{font_color}) : $ch->{fontcol};
-    
-    $sc->{labels}   = defined($r->{labels})        ? $r->{labels}          : undef;
-    $sc->{rotate}   = (defined($sc->{labels}) and ($axis eq "x")) ? 1      : 0;
-    my $centre      = defined($sc->{labels})	   ? 2			   : 0;
-    my $offset      = defined($sc->{labels})       ? 4                     : 0;
-    $sc->{centre}   = $r->{offset}      	   ? 0			   : $centre;
-    $sc->{flags}    = defined($r->{rotate})        ? ($r->{rotate} != 0)   : $sc->{rotate};
-    $sc->{flags}   |= defined($r->{center})        ? ($r->{center} != 0)   : $sc->{centre};
-    $sc->{flags}   |= $r->{offset}                 ? $offset               : 0;
-
-    my $maxlen = 0;
-    if (defined $sc->{labels}) {
-	foreach my $label (@{$sc->{labels}}) {
-	    my $len = length($label);
-	    $maxlen = $len if ($len > $maxlen);
-	}
-    }
-    my ($width, $height);
-    if ($axis eq "x") {
-	$width      = $ch->{right} - 1 - $ch->{keyw} - $ch->{rmargin} - $ch->{yx1};
-	if (defined($sc->{labels}) and ($sc->{flags} & 1 == 1)) {
-	    $height = $sc->{markmax} + (1 + $maxlen * 0.8) * $sc->{fsize};
-	} else {
-	    $height = $sc->{markmax} + 2.5 * $sc->{fsize};
-	}
-    } elsif ($axis eq "y") {
-	if (defined($sc->{labels}) and ($sc->{flags} & 1 == 0)) {
-	    $width = $sc->{markmax} + $maxlen * 0.8 * $sc->{fsize};
-	} else {
-	    $width  = 30;
-	}
-	$height     = $ch->{top} - $ch->{bottom} - 2 * $ch->{spc};
-    }
-    $sc->{width}    = defined($r->{width})         ? $r->{width}           : $width;
-    $sc->{height}   = defined($r->{height})        ? $r->{height}          : $height;
-}
-# Internal method, setting axis sizes required for chart dimensions
-# Requires paper fonts to have been initialized
+ sub x_axis_color	    { color_as_array( shift()->{x}{color} ); }
+ sub x_axis_low		    { shift()->{x}{llo}; }
+ sub x_axis_high	    { shift()->{x}{lhi}; }
+ sub x_axis_width	    { shift()->{x}{width}; }
+ sub x_axis_height	    { shift()->{x}{height}; }
+ sub x_axis_label_gap	    { shift()->{x}{labelgap}; }
+ sub x_axis_smallest	    { shift()->{x}{smallest}; }
+ sub x_axis_title	    { shift()->{x}{title}; }
+ sub x_axis_font	    { shift()->{x}{font}; }
+ sub x_axis_font_color	    { shift()->{x}{fcol}; }
+ sub x_axis_font_size	    { shift()->{x}{fsize}; }
+ sub x_axis_heavy_color	    { color_as_array( shift()->{x}{heavycol} ); }
+ sub x_axis_mid_color	    { color_as_array( shift()->{x}{midcol} ); }
+ sub x_axis_light_color	    { color_as_array( shift()->{x}{lightcol} ); }
+ sub x_axis_heavy_width	    { shift()->{x}{heavyw}; }
+ sub x_axis_mid_width	    { shift()->{x}{midw}; }
+ sub x_axis_light_width	    { shift()->{x}{lightw}; }
+ sub x_axis_mark_min	    { shift()->{x}{markmin}; }
+ sub x_axis_mark_max	    { shift()->{x}{markmax}; }
+ sub x_axis_mark_gap	    { shift()->{x}{markgap}; }
+ sub x_axis_labels_req	    { shift()->{x}{labsreq}; }
+ sub x_axis_rotate	    { shift()->{x}{rotate} != 0; }
+ sub x_axis_center	    { shift()->{x}{center} != 0; }
+ sub x_axis_show_lines	    { shift()->{x}{show} != 0; }
+ sub y_axis_color	    { color_as_array( shift()->{y}{color} ); }
+ sub y_axis_low		    { shift()->{y}{llo}; }
+ sub y_axis_high	    { shift()->{y}{lhi}; }
+ sub y_axis_width	    { shift()->{y}{width}; }
+ sub y_axis_height	    { shift()->{y}{height}; }
+ sub y_axis_label_gap	    { shift()->{y}{labelgap}; }
+ sub y_axis_smallest	    { shift()->{y}{smallest}; }
+ sub y_axis_title	    { shift()->{y}{title}; }
+ sub y_axis_font	    { shift()->{y}{font}; }
+ sub y_axis_font_color	    { shift()->{y}{fcol}; }
+ sub y_axis_font_size	    { shift()->{y}{fsize}; }
+ sub y_axis_heavy_color	    { color_as_array( shift()->{y}{heavycol} ); }
+ sub y_axis_mid_color	    { color_as_array( shift()->{y}{midcol} ); }
+ sub y_axis_light_color	    { color_as_array( shift()->{y}{lightcol} ); }
+ sub y_axis_heavy_width	    { shift()->{y}{heavyw}; }
+ sub y_axis_mid_width	    { shift()->{y}{midw}; }
+ sub y_axis_light_width	    { shift()->{y}{lightw}; }
+ sub y_axis_mark_min	    { shift()->{y}{markmin}; }
+ sub y_axis_mark_max	    { shift()->{y}{markmax}; }
+ sub y_axis_mark_gap	    { shift()->{y}{markgap}; }
+ sub y_axis_labels_req	    { shift()->{y}{labsreq}; }
+ sub y_axis_rotate	    { shift()->{y}{rotate} != 0; }
+ sub y_axis_center	    { shift()->{y}{center} != 0; }
+ sub y_axis_show_lines	    { shift()->{y}{show} != 0; }
 
 =head2 Axis Options
 
@@ -859,7 +647,12 @@ labels in the normal 'number' position, next to the major lines.
 
 =head3 axis_color
 
-Colour for grid lines on one axis.  See L</paper_color>.  (Defaults to C<paper_color>).
+Colour for grid lines on one axis.  See L</layout_color>.  (Defaults to C<layout_color>).
+
+=head3 axis_draw_fn
+
+The string given here should be the name of a PostScript function which will draw the axis, lines and labels.  See
+the code for the C</xdraw> and C</ydraw> functions which provide the defaults.
 
 =head3 axis_font
 
@@ -875,11 +668,11 @@ Size for title and labels on the axis.  (Defaults to C<font_size>)
 
 =head3 axis_heavy_color
 
-The colour of the major, labelled, lines.  (Defaults to C<paper_heavy_color>)
+The colour of the major, labelled, lines.  (Defaults to C<layout_heavy_color>)
 
 =head3 axis_heavy_width
 
-Width of the labelled lines.  (Defaults to C<paper_heavy_width>)
+Width of the labelled lines.  (Defaults to C<layout_heavy_width>)
 
 =head3 axis_height
 
@@ -900,7 +693,11 @@ x axis.  Although available to the y axis, the spacing between labels is rarely 
 =head3 axis_labels
 
 This should be a reference to a list of strings.  If a list of labels is provided, the axes uses these, ignoring
-C<axis_high> and C<axis_low>.
+C<axis_high> and C<axis_low>.  
+
+The functions C<x_axis_labels> and C<y_axis_labels> are unusual in that they set as well as return their value.
+Note that any alterations made after C<new> and before C<draw_scales>, must have all strings enclosed in '()' for
+postscript.  The number of labels must NOT be changed.
 
 =head3 axis_labels_req
 
@@ -909,11 +706,11 @@ not suitable. (Default derived from C<axis_label_gap>)
 
 =head3 axis_light_color
 
-Colour of the minor, unlabelled, lines. (Defaults to C<paper_light_color>)
+Colour of the minor, unlabelled, lines. (Defaults to C<layout_light_color>)
 
 =head3 axis_light_width
 
-Width of the lightest lines.  (Defaults to C<paper_light_width>)
+Width of the lightest lines.  (Defaults to C<layout_light_width>)
 
 =head3 axis_low
 
@@ -923,19 +720,24 @@ The lowest number required to appear on the axis.  This will be rounded down to 
 =head3 axis_mid_color
 
 A scale of 10 will be divided into two lots of 5 seperated by a slightly heavier line at the 5 mark.  This is the
-'mid' line.  (Defaults to C<paper_mid_color>)
+'mid' line.  (Defaults to C<layout_mid_color>)
 
 =head3 axis_mid_width
 
-Width of the mid-lines, see </axis_mid_color>.  (Defaults to C<paper_mid_width>)
+Width of the mid-lines, see </axis_mid_color>.  (Defaults to C<layout_mid_width>)
+
+=head3 axis_mark_gap
+
+The gap between smallest marks.  This is a calculated value and cannot be set, although it may be controlled with
+B<axis_smallest>.
 
 =head3 axis_mark_min
 
-The smallest mark on the axis.  (Defaults to C<paper_mark_min>)
+The smallest mark on the axis.  (Defaults to C<layout_mark_min>)
 
 =head3 axis_mark_max
 
-The tallest mark on the axis.  (defaults to C<paper_mark_max>)
+The tallest mark on the axis.  (defaults to C<layout_mark_max>)
 
 =head3 axis_rotate
 
@@ -945,7 +747,7 @@ provided, 0 otherwise)
 =head3 axis_smallest
 
 This is the smallest allowable gap between axis marks.  Setting this controls how many subdivisions the program
-generates.  It would be wise to set this as a multiple of C<paper_dots_per_inch>.  (Defaults to 3 dots)
+generates.  It would be wise to set this as a multiple of C<layout_dots_per_inch>.  (Defaults to 3 dots)
 
 
 =head3 axis_title
@@ -960,52 +762,551 @@ For y: width allocated for y axis marks and labels.  (Default: 36)
 
 =cut
 
-sub x_axis_color       { color_as_array( shift()->{x}{color} ); }
-sub x_axis_low         { shift()->{x}{llo}; }
-sub x_axis_high        { shift()->{x}{lhi}; }
-sub x_axis_width       { shift()->{x}{width}; }
-sub x_axis_height      { shift()->{x}{height}; }
-sub x_axis_label_gap   { shift()->{x}{labelgap}; }
-sub x_axis_smallest    { shift()->{x}{smallest}; }
-sub x_axis_title       { shift()->{x}{title}; }
-sub x_axis_font        { shift()->{x}{font}; }
-sub x_axis_font_color  { shift()->{x}{fcol}; }
-sub x_axis_font_size   { shift()->{x}{fsize}; }
-sub x_axis_heavy_color { color_as_array( shift()->{x}{heavycol} ); }
-sub x_axis_mid_color   { color_as_array( shift()->{x}{midcol} ); }
-sub x_axis_light_color { color_as_array( shift()->{x}{lightcol} ); }
-sub x_axis_heavy_width { shift()->{x}{heavyw}; }
-sub x_axis_mid_width   { shift()->{x}{midw}; }
-sub x_axis_light_width { shift()->{x}{lightw}; }
-sub x_axis_mark_min    { shift()->{x}{markmin}; }
-sub x_axis_mark_max    { shift()->{x}{markmax}; }
-sub x_axis_labels_req  { shift()->{x}{labsreq}; }
-sub x_axis_labels      { shift()->{x}{labels}; }
-sub x_axis_rotate      { shift()->{x}{rotate}; }
-sub x_axis_center      { shift()->{x}{centre}; }
-sub y_axis_color       { color_as_array( shift()->{y}{color} ); }
-sub y_axis_low         { shift()->{y}{llo}; }
-sub y_axis_high        { shift()->{y}{lhi}; }
-sub y_axis_width       { shift()->{y}{width}; }
-sub y_axis_height      { shift()->{y}{height}; }
-sub y_axis_label_gap   { shift()->{y}{labelgap}; }
-sub y_axis_smallest    { shift()->{y}{smallest}; }
-sub y_axis_title       { shift()->{y}{title}; }
-sub y_axis_font        { shift()->{y}{font}; }
-sub y_axis_font_color  { shift()->{y}{fcol}; }
-sub y_axis_font_size   { shift()->{y}{fsize}; }
-sub y_axis_heavy_color { color_as_array( shift()->{y}{heavycol} ); }
-sub y_axis_mid_color   { color_as_array( shift()->{y}{midcol} ); }
-sub y_axis_light_color { color_as_array( shift()->{y}{lightcol} ); }
-sub y_axis_heavy_width { shift()->{y}{heavyw}; }
-sub y_axis_mid_width   { shift()->{y}{midw}; }
-sub y_axis_light_width { shift()->{y}{lightw}; }
-sub y_axis_mark_min    { shift()->{y}{markmin}; }
-sub y_axis_mark_max    { shift()->{y}{markmax}; }
-sub y_axis_labels_req  { shift()->{y}{labsreq}; }
-sub y_axis_labels      { shift()->{y}{labels}; }
-sub y_axis_rotate      { shift()->{y}{rotate}; }
-sub y_axis_center      { shift()->{y}{centre}; }
+sub x_axis_labels {
+    my ($o, $ar) = @_;
+    $o->{x}{labels} = $ar if (defined $ar);
+    return $o->{x}{labels}; 
+}
+
+sub y_axis_labels {
+    my ($o, $ar) = @_;
+    $o->{y}{labels} = $ar if (defined $ar);
+    return $o->{y}{labels}; 
+}
+
+sub init_scale_sizes {
+    my ($o, $axis, $r) = @_;
+    $r = {} unless (defined $r);
+    $o->{$axis}{markmin} = 0 unless (defined $o->{$axis}{markmin});
+    my $sc = $o->{$axis};
+    my $ch = $o->{ch};
+    $r = {} unless (defined $r);
+    
+    $sc->{markmin} = defined($r->{mark_min})      ? $r->{mark_min}          : 0.5;
+    $sc->{markmax} = defined($r->{mark_max})      ? $r->{mark_max}          : 8;
+    $sc->{font}    = defined($r->{font})          ? $r->{font}              : $ch->{font};
+    $sc->{fsize}   = defined($r->{font_size})     ? $r->{font_size}         : $ch->{fontsize};
+    $sc->{fcol}    = defined($r->{font_color})    ? str($r->{font_color})   : $ch->{fontcol};
+
+    $sc->{labels}  = $r->{labels};
+    my $bar        = defined($r->{labels})        ? 1			    : 0;
+    my $offset     = defined($r->{offset})        ? ($r->{offset} != 0)     : 0;
+    $sc->{offset}  = $bar			  ? $offset		    : 0;
+    $sc->{rotate}  = defined($r->{rotate})	  ? ($r->{rotate} != 0)     : $bar;
+    $sc->{center}  = defined($r->{center})	  ? ($r->{center} != 0)     : $bar;
+    $sc->{show}    = defined($r->{show_lines})    ? ($r->{show_lines} != 0) : not $bar;
+    $sc->{flags}   = $bar          * $fl_bar;
+    $sc->{flags}  |= $sc->{rotate} * $fl_rotate;
+    $sc->{flags}  |= $sc->{center} * $fl_center;
+    $sc->{flags}  |= $sc->{offset} * $fl_offset;
+    $sc->{flags}  |= $sc->{show}   * $fl_show;
+    #print "$axis axis flags=$sc->{flags}, bar=$bar\n";
+    #print "rotate=$sc->{rotate}, center=$sc->{center}, offset=$sc->{offset}, show=$sc->{show}\n";
+    
+    my $maxlen = 0;
+    if (defined $sc->{labels}) {
+	foreach my $label (@{$sc->{labels}}) {
+	    my $len = length($label);
+	    $maxlen = $len if ($len > $maxlen);
+	}
+    }
+    my ($width, $height);
+    if ($axis eq "x") {
+	$width      = $ch->{right} - 1 - $ch->{keyw} - $ch->{rmargin} - $ch->{yx1};
+	if (defined($sc->{labels}) and ($sc->{flags} & 1 == 1)) {
+	    $height = $sc->{markmax} + (1 + $maxlen * 0.8) * $sc->{fsize};
+	} else {
+	    $height = $sc->{markmax} + 2.5 * $sc->{fsize};
+	}
+    } elsif ($axis eq "y") {
+	if (defined($sc->{labels}) and ($sc->{flags} & 1 == 0)) {
+	    $width = $sc->{markmax} + $maxlen * 0.8 * $sc->{fsize};
+	} else {
+	    $width  = 30;
+	}
+	$height     = $ch->{top} - $ch->{bottom} - 2 * $ch->{spc};
+    }
+    $sc->{width}    = defined($r->{width})         ? $r->{width}           : $width;
+    $sc->{height}   = defined($r->{height})        ? $r->{height}          : $height;
+}
+# Internal method, setting axis sizes required for chart dimensions
+# Requires layout fonts to have been initialized
+# Called from within initlayout, before all other axis inits
+
+sub init_scale_options {
+    my ($o, $axis, $r) = @_;
+    $o->{$axis}{llo} = 0;
+    my $sc = $o->{$axis};
+    my $ch = $o->{ch};
+    $r = {} unless (defined $r);
+    
+    # collect options and set defaults
+    $sc->{llo}       = defined($r->{low})           ? $r->{low}           : 0;
+    $sc->{lhi}       = defined($r->{high})          ? $r->{high}          : 100;
+    $sc->{labelgap}  = defined($r->{label_gap})     ? $r->{label_gap}     : 30;	    # gap between labels
+    $sc->{smallest}  = defined($r->{smallest})      ? $r->{smallest}      : 3 * 72/$ch->{dpi};	# 3 dots
+    $sc->{title}     = defined($r->{title})         ? $r->{title}         : ($sc->{title} || "");
+    
+    my $x = ($axis eq "x");
+    my $y = ($axis eq "y");
+    if ($x) {
+	$sc->{phi}   = $ch->{gx1};
+	$sc->{plo}   = $ch->{gx0};
+	$sc->{draw}  = defined($r->{draw_fn})       ? $r->{draw_fn}       : "xdraw";
+    } elsif ($y) {
+	$sc->{phi}   = $ch->{gy1};
+	$sc->{plo}   = $ch->{gy0};
+	$sc->{draw}  = defined($r->{draw_fn})       ? $r->{draw_fn}       : "ydraw";
+    } else {
+	die "init_scale(): axis not x or y\nStopped";
+    }
+
+    my $bar  = (($sc->{flags} & $fl_bar) == $fl_bar);
+    my $show = (($sc->{flags} & $fl_show) == $fl_show);
+    if ($x and $bar) {
+	#print "using background\n";
+	if ($show) {
+	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
+	    $sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{midcol};
+	} else {
+	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{bgnd};
+	    $sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{bgnd};
+	}
+	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{bgnd};
+    } else {
+	#print "using colours\n";
+	$sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
+	$sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{midcol};
+	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{lightcol};
+    }
+    $sc->{heavyw}   = defined($r->{heavy_width}) ? str($r->{heavy_width}) : $ch->{heavyw};
+    $sc->{midw}     = defined($r->{mid_width})   ? $r->{mid_width}        : $ch->{midw};
+    $sc->{lightw}   = defined($r->{light_width}) ? $r->{light_width}      : $ch->{lightw};
+
+
+}
+# Internal method, reading scale options
+# Called within new, after initlayout (and init_scale_sizes) but before init_bars or init_scale 
+
+sub init_bars {
+    my ($o, $axis, $r) = @_;
+    my $sc = $o->{$axis};
+    my $ch = $o->{ch};
+    $r = {} unless (defined $r);
+
+    #print join(",", @{$sc->{labels}}) . "\n";
+    my @labels;
+    foreach my $label (@{$sc->{labels}}) {
+	push @labels, "($label)";
+    }
+    unless ($labels[$#labels] eq "()") {
+	push @labels, "()";
+    }
+    
+    my $subdivs    = defined($r->{sub_divisions}) ? $r->{sub_divisions} : 1;
+    my $markmul    = ($sc->{markmax} - $sc->{markmin})/$subdivs;
+    $sc->{markmul} = defined($r->{mark_mul})      ? $r->{mark_mul}      : $markmul;
+    $sc->{markgap} = ($sc->{phi} - $sc->{plo})/($#labels * $subdivs);
+    $sc->{markcen} = $subdivs > 1 ? ($sc->{markgap} - 0.5) * $subdivs : $sc->{markgap} * 2;
+    my $n = ($sc->{flags} & $fl_offset) ? $#labels - 1 : $#labels; 
+    $sc->{factors} = [ ($n, $subdivs) ];
+    $sc->{labels}  = [ @labels ];
+    $sc->{ldepth}  = 0;
+    #print "$axis labels   = $sc->{labels}\n";
+
+    $sc->{labsreq} = $#labels;
+    $sc->{llo}     = 0;
+    $sc->{lhi}     = $#labels;
+    $sc->{l2pm}    = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
+    $sc->{l2pc}    = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
+    $sc->{p2lm}    = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
+    $sc->{p2lc}    = $sc->{llo} - $sc->{p2lm} * $sc->{plo};
+    #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
+    #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
+
+}
+# Internal method, intializing one barchart axis
+
+sub init_scale {
+    my ($o, $axis, $r) = @_;
+    my $sc = $o->{$axis};
+    my $ch = $o->{ch};
+    $r = {} unless (defined $r);
+
+    my $sclrange = $sc->{lhi} - $sc->{llo};
+    my $scprange = $sc->{phi} - $sc->{plo};
+    $sc->{labsreq} = int($scprange/$sc->{labelgap});
+    $sc->{labsreq} = defined($r->{labels_req}) ? $r->{labels_req} : $sc->{labsreq}; # allow override
+    $sc->{labsreq} = 1 if $sc->{labsreq} < 1;
+
+    ## calculate number of major marks to use
+    #print "$axis requested: physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
+    #print "$axis            lrange=$sclrange, prange=$scprange, labelsreq=$sc->{labsreq}, smallest=$sc->{smallest}\n";
+    my $lbase10 = $sclrange > 0 ? log($sclrange)/log(10) : 0;
+    my $mult = 10 ** int($lbase10);
+    my $mant = $sclrange/$mult;
+    my @scale  = (0.2, 0.5, 1, 2, 5);
+    my @subdiv = (  2,   5, 2, 5, 2);
+    my ($best, $scale, $nmarks, $subdivs) = 99;
+    for (my $i = 0; $i <= $#scale; $i++) {
+	my $smant = $mant*$scale[$i];
+	my $smult = $mult/$scale[$i];
+	my $score = abs($smant - $sc->{labsreq});
+	if ($score < $best) {
+	    $best = $score;
+	    $nmarks = $smant;
+	    $scale = $smult;
+	    $subdivs = $subdiv[$i];
+	}
+    }
+    
+    ## include outer marks as required
+    my $llo = int($sc->{llo}/$scale) * $scale;
+    $nmarks++ if ($sc->{llo} >= 0 and $llo < $sc->{llo});
+    $nmarks = ($nmarks > int($nmarks)) ? int($nmarks)+1 : int($nmarks);
+    if ($sc->{llo} < 0) {
+	$llo -= $scale;
+	$nmarks++;
+    }
+    $nmarks = 1 if $nmarks < 1;
+    $sc->{llo} = $llo;
+    $sc->{lhi} = $llo + $nmarks * $scale;
+    #print "$axis            nmarks=$nmarks, scale=$scale, subdivs=$subdivs\n";
+    
+    ## calculate subdivisions of subdivisions ...
+    my @factor = ($nmarks);
+    my @spread = ($scale);
+    my $nphys = int($scprange/$sc->{smallest});
+    my $rem = $nphys/$nmarks;
+    while ($rem > $subdivs) {
+	$rem /= $subdivs;
+	$nmarks *= $subdivs;
+	$scale /= $subdivs;
+	push @factor, $subdivs;
+	push @spread, $scale;
+	$subdivs = ($subdivs == 2) ? 5 : 2;
+    }
+    if ($rem/5 > 1) {
+	$nmarks *= 5;
+	$scale /= 5;
+	push @factor, 5;
+	push @spread, $scale;
+    } elsif ($rem/2 > 1) {
+	$nmarks *= 2;
+	$scale /= 2;
+	push @factor, 2;
+	push @spread, $scale;
+    }
+    $sc->{factors} = [ @factor ];	    # nesting of (sub)divisions
+    $sc->{spreads} = [ @spread ];	    # logical size of those (sub)divisions
+    $sc->{markgap} = $scprange/$nmarks;	    # physical size between smallest marks
+    $sc->{markcen} = $sc->{markgap};
+    #print "$axis factors  = [", join(", ", @factor), "],   markgap=$sc->{markgap}\n";
+
+    ## calculate physical width of all the marks 
+    my $marks = 1;
+    foreach my $factor (@factor) { $marks *= $factor; }
+    $sc->{phi} = $sc->{plo} + $marks * $sc->{markgap};
+
+    ## calculate depth for printed labels
+    my $nlabels = 1;
+    my $last = 0;
+    $sc->{ldepth} = 0;
+    for (my $depth = 0; $depth <= $#factor; $depth++) {
+	$last = $nlabels;
+	$nlabels *= $factor[$depth];
+	if ($nlabels >= $sc->{labsreq}) {
+	    if (abs($last - $sc->{labsreq}) < abs($nlabels - $sc->{labsreq})) {
+		$nlabels = $last;
+		$sc->{ldepth} = $depth - 1;
+	    } else {
+		$sc->{ldepth} = $depth;
+	    }
+	    last;
+	}
+    }
+    #print "$axis spreads  = [", join(", ", @spread), "],   depth=$sc->{ldepth}\n";
+    $sc->{markmul} = ($#factor >= 0) ? ($sc->{markmax} - $sc->{markmin})/($#factor + 1) : 0;
+    
+    ## calculate any SI adjustment to labels
+    my $lhi10 = $sc->{lhi} != 0 ? log($sc->{lhi})/log(10) : 0;
+    my $si10 = (3 * int($lhi10/3));
+    my $si = 10 ** $si10;
+    if ($si != 1) {
+	$sc->{title} = "" unless (defined $sc->{title});
+	$sc->{title} .= " (in ${si}'s)";
+    }
+    
+    ## now for the actual labels
+    my @count = ();
+    foreach my $f (@factor) { push @count, 0; }
+    my $depth = $sc->{ldepth};
+    my $value = $sc->{llo};
+    my @labels = ($value/$si);
+    while ($depth >= 0) {
+	for ($depth = $sc->{ldepth}; $depth >= 0; $depth--) {
+	    ++$count[$depth];
+	    last if ($count[$depth] < $factor[$depth]);
+	    $count[$depth] = 0;
+	}
+	$value = $sc->{llo};
+	for (my $i = 0; $i <= $sc->{ldepth}; $i++) {
+	    $value += $count[$i] * $spread[$i];
+	}
+	push @labels, $value/$si;
+    }
+    pop @labels;
+    push @labels, $sc->{lhi}/$si;
+    $sc->{labels} = [ @labels ];
+    #print "$axis produced : physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}, si=$si\n";
+
+    ## y = mx + c values
+    $sc->{l2pm} = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
+    $sc->{l2pc} = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
+    $sc->{p2lm} = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
+    $sc->{p2lc} = $sc->{llo} - $sc->{p2lm} * $sc->{plo};
+    #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
+    #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
+}
+## Internal method, initializing one scale
+# expects either ("x", $opts{x_axis}) or ("y", $opts{y_axis})
+# $o->{ch}{...} must already exist
+
+=head1 OBJECT METHODS
+
+Methods are provided which access the option values given to the constructor.  Those are B<file>, and all B<layout_>,
+B<x_axis_> and B<y_axis_> methods documented under </CONSTRUCTOR>.
+
+The most common PostScript::File methods are also provided as members of this class.
+
+However, the most useful methods are those which give access to the layout calculations including conversion
+functions.
+
+=head2 Convenience methods
+
+A few methods of the underlying PostScript::File object are provided for convenience.  The others can be called
+via the B<file()> function.  The following both do the same thing.
+
+    $pg->newpage();
+    $pg->file()->newpage();
+
+=cut
+
+sub output {
+    my ($o, @params) = @_; 
+    $o->{ps}->output( @params );
+}
+
+=head3 output( file [, dir] )
+
+Output the chart as a file.  See L<PostScript::File/output>.
+
+=cut
+
+sub newpage { 
+    my ($o, @params) = @_; 
+    $o->{ps}->newpage( @params );
+}
+
+=head3 newpage( [page] )
+
+Start a new page in the underlying PostScript::File object.  See L<PostScript::File/newpage> and
+L<PostScript::File/set_page_label>.
+
+=cut
+
+sub add_function {
+    my ($o, @params) = @_; 
+    $o->{ps}->add_function( @params );
+}
+
+=head3 add_function( name, code )
+
+Add functions to the underlying PostScript::File object.  See L<PostScript::File/add_function> for details.
+
+=cut
+
+sub add_to_page {
+    my ($o, @params) = @_; 
+    $o->{ps}->add_to_page( @params );
+}
+
+=head3 add_to_page( [page], code )
+
+Add postscript code to the underlying PostScript::File object.  See L<PostScript::File/add_to_page> for details.
+
+=cut
+
+sub graph_area { 
+    my $o = shift; 
+    return ($o->{ch}{gx0}, $o->{ch}{gy0}, $o->{ch}{gx1}, $o->{ch}{gy1}); 
+}
+    
+=head2 Result methods
+
+These fall into three groups according to their return value.  B<_area> methods return an array of four values
+representing the physical coordinates of (left, bottom, right, top).  B<_point> methods return an array again, but
+this time representing an (x, y) value.  The underlying constants are also accessable.
+
+=head3 graph_area
+
+Return an array holding (x0, y0, x1, y1), the bounding box of the graph area.
+
+=cut
+
+sub key_area { 
+    my $o = shift; 
+    my $left = $o->{ch}{gx1} + $o->{ch}{rmargin};
+    my $right = $o->{ch}{right} - $o->{ch}{spc} - 1;
+    my $top = $o->{ch}{top} - $o->{ch}{spc};
+    my $bottom = $o->{ch}{bottom} + $o->{ch}{spc};
+    return ($left, $bottom, $right, $top); 
+}
+    
+=head3 key_area
+
+Return an array holding (x0, y0, x1, y1), the bounding box of the area allocated for the key, if any. 
+
+=cut
+
+sub vertical_bar_area {
+    my ($o, $bar, $y) = @_;
+    my ($left, $bottom, $right, $top);
+    if (defined $o->{x}{labels}) {
+	$left = $o->{ch}{gx0} + ($bar + 0.5) * $o->{x}{markgap};
+	$right = $left + $o->{x}{markgap};
+    } else {
+	$left = $o->{ch}{gx0} + $bar * $o->{x}{markgap};
+	$right = $left + $o->{x}{markgap};
+    }
+    if (defined $y) {
+	$bottom = $o->{y}{l2pc};
+	$top = $y * $o->{y}{l2pm} + $o->{y}{l2pc};
+	# reverse if y < 0
+	if ($top < $bottom) {
+	    my $temp = $top;
+	    $top = $bottom;
+	    $bottom = $temp;
+	}
+	# clip if out of graph area
+	my $gy0 = $o->{ch}{gy0};
+	my $gy1 = $o->{ch}{gy1};
+	$top    = $gy0 if ($top    < $gy0);
+	$bottom = $gy0 if ($bottom < $gy0);
+	$top    = $gy1 if ($top    > $gy1);
+	$bottom = $gy1 if ($bottom > $gy1);
+    } else {
+    $bottom = $o->{ch}{gy0};
+    $top = $o->{ch}{gy1};
+    }
+    return ($left, $bottom, $right, $top);
+}
+
+=head3 vertical_bar_area
+
+Return the physical coordinates of a barchart bar.  Use as:
+
+    @area = vertical_bar_area( $bar )
+    @area = vertical_bar_area( $bar, $y )
+
+Where C<$bar> is the 0 based number of the bar and C<$y> is an optional coordinate indicating the top of the bar.
+
+=cut
+
+sub horizontal_bar_area {
+    my ($o, $bar, $x) = @_;
+    $x = $o->{x}{lhi} unless (defined $x);
+    my $left = $o->{ch}{gx0};
+    my $bottom = $o->{ch}{gy0} + $bar * $o->{y}{markgap};
+    my $right = $x * $o->{x}{l2pm} + $o->{x}{l2pc};
+    my $top = $bottom + $o->{y}{markgap};
+    return ($left, $bottom, $right, $top);
+}
+
+=head3 horizontal_bar_area
+
+Return the physical coordinates of a barchart bar.  Use as:
+
+    @area = horizontal_bar_area( $bar )
+    @area = horizontal_bar_area( $bar, $x )
+
+Where C<$bar> is the 0 based number of the bar and C<$x> is an optional coordinate indicating the 'top' of the bar.
+
+=cut
+
+sub physical_point { 
+    my ($o, $x, $y) = @_; 
+    return ($x * $o->{x}{l2pm} + $o->{x}{l2pc}, $y * $o->{y}{l2pm} + $o->{y}{l2pc});
+}
+
+=head3 physical_point( x, y )
+
+Return the physical, native postscript, coordinates corresponding to the logical point (x, y) on the graph.
+
+=cut
+
+sub logical_point { 
+    my ($o, $x, $y) = @_; 
+    return ($x * $o->{x}{p2lm} + $o->{x}{p2lc}, $y * $o->{y}{p2lm} + $o->{y}{p2lc});
+}
+
+=head3 logical_point( px, py )
+
+Return the logical, graph, coordinates corresponding to a point on the postscript page.
+
+=cut
+
+sub px { 
+    my ($o, $v) = @_; 
+    return $v * $o->{x}{l2pm} + $o->{x}{l2pc}; 
+}
+
+=head3 px
+
+Use as physical_x = $gp->ps( logical_x )
+
+=cut
+
+sub py { 
+    my ($o, $v) = @_; 
+    return $v * $o->{y}{l2pm} + $o->{y}{l2pc}; 
+}
+
+=head3 py
+
+Use as physical_y = $gp->ps( logical_y )
+
+=cut
+
+sub lx { 
+    my ($o, $v) = @_; 
+    return $v * $o->{x}{p2lm} + $o->{x}{p2lc}; 
+}
+
+=head3 lx
+
+Use as logical_x = $gp->ps( physical_x )
+
+=cut
+
+sub ly { 
+    my ($o, $v) = @_; 
+    return $v * $o->{y}{p2lm} + $o->{y}{p2lc}; 
+}
+
+=head3 py
+
+Use as logical_y = $gp->ps( physical_y )
+
+=cut
+
+sub color_as_array ($) {
+    my $col = shift;
+    my ($r, $g, $b) = ($col =~ /\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+    $col = [ $r, $g, $b ] if (defined $b);
+    return $col;
+}
+    
 ### PostScript code ##########################################################
 
 =head1 POSTSCRIPT CODE
@@ -1014,11 +1315,11 @@ There should be no reason to access this under normal use.  However, as the purp
 drawing graphs for postscript easier.  Therefore the main graph-drawing function is documented here, along with
 the variables and functions that may be useful elsewhere.
 
-=head3 drawpaper
+=head3 drawgpaper
 
-The principal function, B<drawgpaper>, requires 62 settings.  To make this more manageable there are a number of
-functions which merely accept and store a small group of these.  After these have been executed, B<drawgpaper> is
-then called with no parameters.  
+The principal function requires 62 settings.  To make this more manageable there are a number of functions which
+merely accept and store a small group of these.  After these have been executed, B<drawgpaper> is then called with
+no parameters.  
 
 Usage is given below with the functions indented after their parameters.  Each function remove all its parameters
 from the stack.   All functions and variables are within the B<gpaperdict> dictionary.   It is written out as it
@@ -1484,6 +1785,7 @@ sub common_code_for_scales {
 
 	/xaxis_marks {
 	    gpaperdict begin
+	    /xdrawfn exch def
 	    /xmarkcen exch def
 	    /xmarkgap exch def
 	    /xmarkmax exch def
@@ -1491,7 +1793,7 @@ sub common_code_for_scales {
 	    /xmarkmin exch def
 	    end
 	} bind def
-	% _ xmarkmin xmarkmul xmarkmax xmarkgap xmarkcen => _ 
+	% _ xmarkmin xmarkmul xmarkmax xmarkgap xmarkcen /xdrawfn => _ 
 
 	/yaxis_area {
 	    gpaperdict begin
@@ -1519,6 +1821,7 @@ sub common_code_for_scales {
 
 	/yaxis_marks {
 	    gpaperdict begin
+	    /ydrawfn exch def
 	    /ymarkcen exch def
 	    /ymarkgap exch def
 	    /ymarkmax exch def
@@ -1526,7 +1829,7 @@ sub common_code_for_scales {
 	    /ymarkmin exch def
 	    end
 	} bind def
-	% _ ymarkmin ymarkmul ymarkmax ymarkgap ymarkcen => _ 
+	% _ ymarkmin ymarkmul ymarkmax ymarkgap ymarkcen /ydrawfn => _ 
 
 	/heading_area {
 	    gpaperdict begin
@@ -1558,10 +1861,14 @@ sub common_code_for_scales {
 	} bind def
 	% _ xlm xlc ylm ylc => _
 
-	/px { xlm mul xlc add } bind def
+	/px { 
+	    xlm mul xlc add 
+	} bind def
 		
 	% _ int => int
-	/py { ylm mul ylc add } bind def
+	/py { 
+	    ylm mul ylc add 
+	} bind def
 	
 	% _ => _
 	/drawgpaper {
@@ -1569,24 +1876,22 @@ sub common_code_for_scales {
 		gx0 gy0 gx1 gy1 bgnd bgnd 0.25 fillbox
 		hfont hsize hcol gpaperfont
 		htitle hx1 hx0 add 2 div hy1 hsize sub centered
-		
+	
 		xfont xsize xcol gpaperfont
 		xtitle xx1 xy0 rjustified
-		xflags 4 and 4 eq {
-		    % offset lines
-		    gx0 xmarkgap add
-		    gy0 init_xy
+		xflags $fl_offset and $fl_offset eq {
+		    gx0 xmarkgap add gy0 init_xy
 		}{
 		    gx0 gy0 init_xy
 		} ifelse
 		set_xaxis_colors
-		xfactors /xdraw drawonegrid
+		xfactors xdrawfn drawonegrid
 		
 		yfont ysize ycol gpaperfont
 		ytitle yx0 hy0 ysize 0.5 mul add moveto show
 		gx0 gy0 init_xy
 		set_yaxis_colors
-		yfactors /ydraw drawonegrid
+		yfactors ydrawfn drawonegrid
 		
 		gx0 gy0 gx1 gy1 fgnd heavyw drawbox
 	    end
@@ -1599,27 +1904,16 @@ sub common_code_for_scales {
 		    gsave
 			xcol gpapercolor
 			xlabels label get
-			xflags 1 and 1 eq {
-			    xflags 2 and 2 eq {
-				% rotated and centred
-				x fontsize 0.33 mul sub xmarkcen 0.5 mul add
-				y xmarkmax sub 2 sub
-			    }{
-				% rotated and not centered
-				x fontsize 0.33 mul sub
-				y xmarkmax sub 2 sub
-			    } ifelse
+			/xx x def /yy y def
+			xflags $fl_center and $fl_center eq {
+			    /xx xx xmarkcen 0.5 mul add def
+			} if
+			xflags $fl_rotate and $fl_rotate eq {
+			    xx fontsize 0.33 mul sub
+			    yy xmarkmax 1.25 mul sub
 			    rotated
 			}{
-			    xflags 2 and 2 eq {
-				% not rotated and centred
-				x xmarkcen 0.5 mul add
-				y xmarkmax sub fontsize sub
-			    }{
-				% not rotated and not centred
-				x 
-				y xmarkmax sub fontsize sub
-			    } ifelse
+			    xx yy xmarkmax sub fontsize sub
 			    centered
 			} ifelse
 		    grestore
@@ -1699,6 +1993,46 @@ sub common_code_for_scales {
 	% _ depth => _
 	% draw one horizontal line
 
+	/xdrawstock {
+	    gpaperdict begin
+		dup xldepth le {
+		    gsave
+			xcol gpapercolor
+			xlabels label get
+			dup length 0 ne {
+			    x fontsize 0.33 mul sub
+			    y xmarkmax sub
+			    rotated
+			    pop 0
+			}{
+			    pop pop 1
+			} ifelse
+		    grestore
+		    /label label 1 add def
+		}{
+		    pop 2
+		} ifelse
+		setlines
+		newpath
+		x y moveto
+		dup xmarkmul mul xmarkmin add
+		xmarkmax exch sub
+		dup neg 0 exch rlineto
+		0 exch rmoveto
+		dup 2 le {
+		    0 height rlineto
+		    0 height neg rmoveto
+		} if
+		xmarkgap 0 rmoveto
+		store_xy
+		stroke
+		pop
+	    end
+	} bind def
+	% _ depth => _
+	% draw one vertical line
+	% label if depth > 0
+
 	end % gpaperdict
 END_COMMON_FUNCTIONS
 }
@@ -1708,7 +2042,7 @@ END_COMMON_FUNCTIONS
 # This list is to ensure that enough space is allowed in gpaperdict
 # for Level 1 interpreters.
 #
-# gpaperdict functions:
+## gpaperdict functions:
 # centered	show text centred horizontally
 # gpapercolor   select colour or greyscale
 # gpaperfont	select font, noting size
@@ -1731,12 +2065,13 @@ END_COMMON_FUNCTIONS
 # xaxis_labels  setup labels and title for x axis
 # xaxis_marks   setup mark data for x axis
 # xdraw		draw vertical mark according to array index
+# xdrawstock    custom fn drawing marks for stock chart
 # yaxis_area    setup y axis area
 # yaxis_labels  setup labels and title for y axis
 # yaxis_marks   setup mark data for y axis
 # ydraw		draw horizontal mark line according to array index
 # 
-# gpaperdict variables:
+## gpaperdict variables:
 # array_max	largest index into copied array
 # bgnd		background colour for grid
 # boxc		colour of box outline
@@ -1767,6 +2102,7 @@ END_COMMON_FUNCTIONS
 # x0		temp left
 # x1		temp right
 # xcol		font colour uses on x axis
+# xdrawfn	the function to use for drawing x axis
 # xfactors	array holding mark info
 # xflags	1=rotate, 2=centre
 # xfont		font name used on x axis
@@ -1787,6 +2123,7 @@ END_COMMON_FUNCTIONS
 # xmidw		width of mid lines
 # xsize		font size used on x axis
 # xtitle	title for x axis
+# xx		temp x used by xdraw
 # xx0		x axis left 
 # xx1		x axis right
 # xy0		x axis bottom
@@ -1795,6 +2132,7 @@ END_COMMON_FUNCTIONS
 # y0		temp bottom
 # y1		temp top
 # ycol		font colour used on y axis
+# ydrawfn	the function to use for drawing y axis
 # yfactors	array of scale info for drawonegrid
 # yflags	1=rotate, 2=centre
 # yfont		font name used on y axis
@@ -1817,6 +2155,7 @@ END_COMMON_FUNCTIONS
 # ytitle	title for y axis
 # yx0		y axis left
 # yx1		y axis right (same as xx0)
+# yy		temp y used by xdraw
 # yy0		y axis bottom
 # yy1		y axis top
 
@@ -1825,6 +2164,10 @@ sub draw_scales {
     my $ch = $o->{ch};
     my $x = $o->{x};
     my $y = $o->{y};
+    my $xfactors = array_as_string( @{$x->{factors}} );
+    my $yfactors = array_as_string( @{$y->{factors}} );
+    my $xlabels = array_as_string( @{$x->{labels}} );
+    my $ylabels = array_as_string( @{$y->{labels}} );
 
     $o->{ps}->add_to_page( <<END_SCALES );
 	gpaperdict begin
@@ -1835,246 +2178,22 @@ sub draw_scales {
 	$ch->{yx0} $ch->{yy0} $ch->{yx1} $ch->{yy1} yaxis_area
 	$x->{heavyw} $x->{heavycol} $x->{midw} $x->{midcol} $x->{lightw} $x->{lightcol} xaxis_colors
 	$y->{heavyw} $y->{heavycol} $y->{midw} $y->{midcol} $y->{lightw} $y->{lightcol} yaxis_colors
-	$x->{markmin} $x->{markmul} $x->{markmax} $x->{markgap} $x->{markcen} xaxis_marks
-	$y->{markmin} $y->{markmul} $y->{markmax} $y->{markgap} $y->{markcen} yaxis_marks
-	$x->{factors} $x->{labels} $x->{ldepth} $x->{flags}
+	$x->{markmin} $x->{markmul} $x->{markmax} $x->{markgap} $x->{markcen} /$x->{draw} xaxis_marks
+	$y->{markmin} $y->{markmul} $y->{markmax} $y->{markgap} $y->{markcen} /$y->{draw} yaxis_marks
+	$xfactors $xlabels $x->{ldepth} $x->{flags}
 	    /$x->{font} $x->{fsize} $x->{fcol} ($x->{title}) xaxis_labels
-	$y->{factors} $y->{labels} $y->{ldepth} $y->{flags}
+	$yfactors $ylabels $y->{ldepth} $y->{flags}
 	    /$y->{font} $y->{fsize} $y->{fcol} ($y->{title}) yaxis_labels
 	drawgpaper
 	$x->{l2pm} $x->{l2pc} $y->{l2pm} $y->{l2pc} conv_consts
 	end
 END_SCALES
 }
-# Internal method, called by constructor
 
-=head1 OBJECT METHODS
+=head3 draw_scales()
 
-Methods are provided which access the option values given to the constructor.  Those are B<file>, and all B<paper_>,
-B<x_axis_> and B<y_axis_> methods documented under </CONSTRUCTOR>.
-
-The most common PostScript::Graph::File methods are also provided as members of this class.
-
-However, the most useful methods are those which give access to the layout calculations including conversion
-functions.
-
-=head2 Convenience methods
-
-A few methods of the underlying PostScript::Graph::File object are provided for convenience.  The others can be called
-via the B<file()> function.  The following both do the same thing.
-
-    $pg->newpage();
-    $pg->file()->newpage();
-
-=cut
-
-sub output {
-    my ($o, @params) = @_; 
-    $o->{ps}->output( @params );
-}
-
-=head3 output( file [, dir] )
-
-Output the chart as a file.  See L<PostScript::Graph::File/output>.
-
-=cut
-
-sub newpage { 
-    my ($o, @params) = @_; 
-    $o->{ps}->newpage( @params );
-}
-
-=head3 newpage( [page] )
-
-Start a new page in the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/newpage> and
-L<PostScript::Graph::File/set_page_label>.
-
-=cut
-
-sub add_function {
-    my ($o, @params) = @_; 
-    $o->{ps}->add_function( @params );
-}
-
-=head3 add_function( name, code )
-
-Add functions to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_function> for details.
-
-=cut
-
-sub add_to_page {
-    my ($o, @params) = @_; 
-    $o->{ps}->add_to_page( @params );
-}
-
-=head3 add_to_page( [page], code )
-
-Add postscript code to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_to_page> for details.
-
-=cut
-
-sub graph_area { 
-    my $o = shift; 
-    return ($o->{ch}{gx0}, $o->{ch}{gy0}, $o->{ch}{gx1}, $o->{ch}{gy1}); 
-}
-    
-=head2 Result methods
-
-These fall into three groups according to their return value.  B<_area> methods return an array of four values
-representing the physical coordinates of (left, bottom, right, top).  B<_point> methods return an array again, but
-this time representing an (x, y) value.  The underlying constants are also accessable.
-
-=head3 graph_area
-
-Return an array holding (x0, y0, x1, y1), the bounding box of the graph area.
-
-=cut
-
-sub key_area { 
-    my $o = shift; 
-    my $left = $o->{ch}{gx1} + $o->{ch}{rmargin};
-    my $right = $o->{ch}{right} - $o->{ch}{spc} - 1;
-    my $top = $o->{ch}{top} - $o->{ch}{spc};
-    my $bottom = $o->{ch}{bottom} + $o->{ch}{spc};
-    return ($left, $bottom, $right, $top); 
-}
-    
-=head3 key_area
-
-Return an array holding (x0, y0, x1, y1), the bounding box of the area allocated for the key, if any. 
-
-=cut
-
-sub vertical_bar_area {
-    my ($o, $bar, $y) = @_;
-    my ($left, $bottom, $right, $top);
-    if (defined $o->{x}{labels}) {
-	$left = $o->{ch}{gx0} + ($bar + 0.5) * $o->{x}{markgap};
-	$right = $left + $o->{x}{markgap};
-    } else {
-	$left = $o->{ch}{gx0} + $bar * $o->{x}{markgap};
-	$right = $left + $o->{x}{markgap};
-    }
-    if (defined $y) {
-	$bottom = $o->{y}{l2pc};
-	$top = $y * $o->{y}{l2pm} + $o->{y}{l2pc};
-	# reverse if y < 0
-	if ($top < $bottom) {
-	    my $temp = $top;
-	    $top = $bottom;
-	    $bottom = $temp;
-	}
-	# clip if out of graph area
-	my $gy0 = $o->{ch}{gy0};
-	my $gy1 = $o->{ch}{gy1};
-	$top    = $gy0 if ($top    < $gy0);
-	$bottom = $gy0 if ($bottom < $gy0);
-	$top    = $gy1 if ($top    > $gy1);
-	$bottom = $gy1 if ($bottom > $gy1);
-    } else {
-    $bottom = $o->{ch}{gy0};
-    $top = $o->{ch}{gy1};
-    }
-    return ($left, $bottom, $right, $top);
-}
-
-=head3 vertical_bar_area
-
-Return the physical coordinates of a barchart bar.  Use as:
-
-    @area = vertical_bar_area( $bar )
-    @area = vertical_bar_area( $bar, $y )
-
-Where C<$bar> is the 0 based number of the bar and C<$y> is an optional coordinate indicating the top of the bar.
-
-=cut
-
-sub horizontal_bar_area {
-    my ($o, $bar, $x) = @_;
-    $x = $o->{x}{lhi} unless (defined $x);
-    my $left = $o->{ch}{gx0};
-    my $bottom = $o->{ch}{gy0} + $bar * $o->{y}{markgap};
-    my $right = $x * $o->{x}{l2pm} + $o->{x}{l2pc};
-    my $top = $bottom + $o->{y}{markgap};
-    return ($left, $bottom, $right, $top);
-}
-
-=head3 horizontal_bar_area
-
-Return the physical coordinates of a barchart bar.  Use as:
-
-    @area = horizontal_bar_area( $bar )
-    @area = horizontal_bar_area( $bar, $x )
-
-Where C<$bar> is the 0 based number of the bar and C<$x> is an optional coordinate indicating the 'top' of the bar.
-
-=cut
-
-sub physical_point { 
-    my ($o, $x, $y) = @_; 
-    return ($x * $o->{x}{l2pm} + $o->{x}{l2pc}, $y * $o->{y}{l2pm} + $o->{y}{l2pc});
-}
-
-=head3 physical_point( x, y )
-
-Return the physical, native postscript, coordinates corresponding to the logical point (x, y) on the graph.
-
-=cut
-
-sub logical_point { 
-    my ($o, $x, $y) = @_; 
-    return ($x * $o->{x}{p2lm} + $o->{x}{p2lc}, $y * $o->{y}{p2lm} + $o->{y}{p2lc});
-}
-
-=head3 logical_point( px, py )
-
-Return the logical, graph, coordinates corresponding to a point on the postscript page.
-
-=cut
-
-sub px { 
-    my ($o, $v) = @_; 
-    return $v * $o->{x}{l2pm} + $o->{x}{l2pc}; 
-}
-
-=head3 px
-
-Use as physical_x = $gp->ps( logical_x )
-
-=cut
-
-sub py { 
-    my ($o, $v) = @_; 
-    return $v * $o->{y}{l2pm} + $o->{y}{l2pc}; 
-}
-
-=head3 py
-
-Use as physical_y = $gp->ps( logical_y )
-
-=cut
-
-sub lx { 
-    my ($o, $v) = @_; 
-    return $v * $o->{x}{p2lm} + $o->{x}{p2lc}; 
-}
-
-=head3 lx
-
-Use as logical_x = $gp->ps( physical_x )
-
-=cut
-
-sub ly { 
-    my ($o, $v) = @_; 
-    return $v * $o->{y}{p2lm} + $o->{y}{p2lc}; 
-}
-
-=head3 py
-
-Use as logical_y = $gp->ps( physical_y )
-
-=cut
+Commits to postscript the settings collected and calculted by C<new>.  Under normal circumstances this should not
+need to be called.  It is only necessary if the layout option C<no_drawing> has been specified.
 
 =head1 BUGS
 
@@ -2086,7 +2205,7 @@ Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::Graph::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Key>.
+L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Key>.
 
 =cut
 

@@ -1,18 +1,28 @@
-PostScript::Graph::Paper version 0.03
+PostScript::Graph::Paper version 0.06
 =====================================
 
 This module creates a blank graph grid and writes the result into a postscript
-file.  The graph paper has labelled axes, title and a key area as well as
-suitably chosen scales and grid.  Either it stands alone, creating its own
-PostScript::File object, or it can add the blank chart into an already existing
-one.
+file.  It is not expected to be used independently.  See one of these  modules
+for a top-level object.
+
+    PostScript::Graph::XY
+    PostScript::Graph::Bar
+    PostScript::Graph::Stock
+
+The graph paper has labelled axes, title and a key area as well as suitably
+chosen scales and grid.  Either it stands alone, creating its own
+PostScript::File object, or it can add the blank chart into an already
+existing one.
 
 It would be used as follows:
     (a)	Analyse the data to be graphed, especially extracting min and max values
 	for both axes.
-    (b) Call PostScript::GraphPaper::new() with from 0 to over 60 options.
+    
+    (b) Call PostScript::Graph::Paper::new() with from 0 to over 60 options.
 	Hopefully this gives enough flexibility.
+    
     (c)	Add the PostScript code to plot points on the graph.
+    
     (d) Output it as a postscript or encapsulated postscript file for printing.
 
 INSTALLATION
@@ -24,22 +34,29 @@ To install this module type the following:
    make test
    make install
 
-Ignore 'Useless use of constant in void context' messages during the test.  They
-are warnings from Test.pm, not errors in your installation or this module.
-
-The t directory includes *.pl files which make the *.t tests.  Sometime I might
-work out how to get these working under MakeMaker.  In the meantime, call them
-manually if you've changed the module code and the tests need remaking.
+The t directory includes *.pl files which make a couple of the *.t tests.
+Sometime I might work out how to get these working under MakeMaker.  In the
+meantime, call them manually if you've changed the module code and the tests
+need remaking (cd to the t directory first).
 
 DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  PostScript::Graph::File
+  PostScript::File
+
+SEE ALSO
+
+  PostScript::Graph::Key
+  PostScript::Graph::Style
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2002 Christopher P Willmot, all rights reserved.
-This module is published under the Perl Artistic licence, a copy of which may be
-found in the perl distribution or on http://www.perl.org.
+Copyright (C) 2002 Christopher P Willmot.  All rights reserved.
+
+This work is published under the Artistic licence accompanying the Perl
+distribution which may be found at http://www.perl.org.  The existance of this
+work does not imply that it is fit for any purpose implied by the code or
+accompanying documentation.  There is no warranty whatsoever.  Use at your own
+risk.
 

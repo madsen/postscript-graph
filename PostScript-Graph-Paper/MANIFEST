@@ -8,4 +8,5 @@ t/pa02defaults.pl
 t/pa02defaults.t
 t/pa03barchart.pl
 t/pa03barchart.t
+t/pa04twobars.t
 
