@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 6 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 use PostScript::Graph::XY;
 ok(1);
 

@@ -3,13 +3,13 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 9 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 use PostScript::Graph::Style;
 ok(1);
 use PostScript::Graph::XY;
 ok(1);
 
-my $seq = new StyleSequence;
+my $seq = new PostScript::Graph::Sequence;
 ok(1);
 
 my $xy = new PostScript::Graph::XY(
@@ -18,7 +18,7 @@ my $xy = new PostScript::Graph::XY(
 		errors     => 1,
 		debug      => 1,
 	    },
-	    paper  => {
+	    layout  => {
 		left_edge  => 100,
 		background => [1, 1, 0.9],
 	    },

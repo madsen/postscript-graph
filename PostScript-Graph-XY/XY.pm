@@ -1,12 +1,13 @@
 package PostScript::Graph::XY;
 use strict;
 use warnings;
-use PostScript::Graph::File qw(check_file array_as_string);
+use Text::CSV_XS;
+use PostScript::File qw(check_file array_as_string);
 use PostScript::Graph::Paper;
 use PostScript::Graph::Style;
 use PostScript::Graph::Key;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -44,7 +45,7 @@ With more direct control:
 		paper     => 'Letter',
 	    },
 	    
-	    paper => {
+	    layout => {
 		dots_per_inch => 72,
 		heading       => "Example",
 		background    => [ 0.9, 0.9, 1 ],
@@ -99,9 +100,9 @@ With more direct control:
     
     $xy = new PostScript::Graph::XY(
 	file    => {
-	    # see PostScript::Graph::File
+	    # see PostScript::File
 	},
-	paper  => {
+	layout  => {
 	    # see PostScript::Graph::Paper
 	},
 	x_axis  => {
@@ -141,7 +142,7 @@ sub new {
     $o->{opt} = $opt;
     
     $o->{opt}{file}   = {} unless (defined $o->{opt}{file});
-    $o->{opt}{paper} = {} unless (defined $o->{opt}{paper});
+    $o->{opt}{layout} = {} unless (defined $o->{opt}{layout});
     $o->{opt}{x_axis} = {} unless (defined $o->{opt}{x_axis});
     $o->{opt}{y_axis} = {} unless (defined $o->{opt}{y_axis});
     $o->{opt}{style}  = {} unless (defined $o->{opt}{style});
@@ -154,7 +155,7 @@ sub new {
     $o->{key}    = defined($ch->{show_key})         ? $ch->{show_key}           : 1;
     $o->{data}   = defined($ch->{data})             ? $ch->{data}               : undef;
 
-    $o->{opt}{style}{sequence} = new StyleSequence() unless (defined $o->{opt}{style}{sequence});
+    $o->{opt}{style}{sequence} = new PostScript::Graph::Sequence() unless (defined $o->{opt}{style}{sequence});
     $o->build_chart($o->{data}, $opt->{style}) if ($o->{data});
 
     return $o;
@@ -168,8 +169,8 @@ other sections are passed on to the appropriate module as it is created.
 
     Hash Key	Module
     ========	======
-    file	PostScript::Graph::File
-    paper	PostScript::Graph::Paper
+    file	PostScript::File
+    layout	PostScript::Graph::Paper
     x_axis	PostScript::Graph::Paper
     y_axis	PostScript::Graph::Paper
     style	PostScript::Graph::Style
@@ -207,51 +208,52 @@ sub line_from_array {
     foreach my $arg (@_) {
 	$_ = ref($arg);
 	CASE: {
-	    if (/ARRAY/)                  { $data  = $arg; last CASE; }
-	    if (/HASH/)                   { $opts  = $arg; last CASE; }
+	    if (/ARRAY/)                    { $data  = $arg; last CASE; }
+	    if (/HASH/)                     { $opts  = $arg; last CASE; }
 	    if (/PostScript::Graph::Style/) { $style = $arg; last CASE; }
 	    $label = $arg;
 	}
     }
-    die "add_line() requires an array\nStopped" unless (defined $data);
-    $o->{ylabel} = $label                       unless (defined $o->{ylabel});
+    die "add_line() requires an array\nStopped"  unless (defined $data);
+    $o->{ylabel} = $label                        unless (defined $o->{ylabel});
     
-    # create style object
-    $opts = $o->{opt}{style}                    unless (defined $opts);
-    $opts->{line} = {}				unless (defined $opts->{line});
-    $opts->{point} = {}				unless (defined $opts->{point});
-    $style = new PostScript::Graph::Style($opts)  unless (defined $style); 
+    ## create style object
+    $opts = $o->{opt}{style}                     unless (defined $opts);
+    $opts->{line} = {}				 unless (defined $opts->{line});
+    $opts->{point} = {}				 unless (defined $opts->{point});
+    $style = new PostScript::Graph::Style($opts) unless (defined $style); 
     
-    # split multi-columns into seperate lines
+    ## split multi-columns into seperate lines
     my $name = $o->{default}++;
     my ($first, @rest) = split_data($data);
     foreach my $column (@rest) {
 	$o->line_from_array($column, $opts);
     }
     
-    # identify axis titles
+    ## identify axis titles
     $o->{line}{$name}{xtitle} = "";
     my $line = $o->{line}{$name};
     $line->{ytitle} = $label || "";
     $line->{style} = $style;
-    
-    unless ($first->[0][1] =~ /^[\d.-]/) {
+   
+    my $number = qr/^\s*[-+]?[0-9.]+(?:[Ee][-+]?[0-9.]+)?\s*$/;
+    unless ($first->[0][1] =~ $number) {
 	my $row = shift(@$first);
 	$line->{xtitle} = $$row[0];
 	$line->{ytitle} = $$row[1];
     }
     $o->{ylabel} = $line->{ytitle} unless (defined $o->{ylabel});
     
-    # find min and max for each axis
+    ## find min and max for each axis
     my @coords;
     my ($xmin, $ymin, $xmax, $ymax);
     foreach my $row (@$first) {
 	my ($x, $y) = @$row;
-	if ($x =~ /^[\d.-]/) {
+	if ($x =~ $number) {
 	    $xmin = $x if (not defined($xmin) or $x < $xmin);
 	    $xmax = $x if (not defined($xmax) or $x > $xmax);
 	}
-	if ($y =~ /^[\d.-]/) {
+	if ($y =~ $number) {
 	    $ymin = $y if (not defined($ymin) or $y < $ymin);
 	    $ymax = $y if (not defined($ymax) or $y > $ymax);
 	}
@@ -345,11 +347,15 @@ sub line_from_file {
     my ($o, $file, $style) = @_;
     my $filename = check_file($file);
     my @data;
+    my $csv = new Text::CSV_XS;
     open(INFILE, "<", $filename) or die "Unable to open \'$filename\': $!\nStopped";
     while (<INFILE>) {
 	chomp;
-	my @row = split /\s*,\s*/;
-	push @data, [ @row ] if (@row);
+	my $ok = $csv->parse($_);
+	if ($ok) {
+	    my @row = $csv->fields();
+	    push @data, [ @row ] if (@row);
+	}
     }
     close INFILE;
 
@@ -412,7 +418,7 @@ sub build_chart {
 	}
     }
 
-    # Define {opt} hash refs
+    ## Define {opt} hash refs
     my ($first, @rest) = sort keys( %{$o->{line}} );
     my $oo  = $o->{opt};
     $oo->{x_axis} = {} unless (defined $oo->{x_axis});
@@ -420,7 +426,7 @@ sub build_chart {
     $oo->{y_axis} = {} unless (defined $oo->{y_axis});
     my $oy        = $o->{opt}{y_axis};
     
-    # Examine all lines for extent of x & y axes and label lengths
+    ## Examine all lines for extent of x & y axes and label lengths
     my ($xmin, $ymin, $xmax, $ymax, $xtitle, $ytitle);
     my $maxlen  = 0;
     my $lines   = 0;
@@ -448,7 +454,7 @@ sub build_chart {
     $oy->{low}  = $ymin;
     $oy->{high} = $ymax;
    
-    # Ensure PostScript::Graph::File exists
+    ## Ensure PostScript::File exists
     $oo->{file}   = {} unless (defined $oo->{file});
     my $of        = $o->{opt}{file};
     $of->{left}   = 36 unless (defined $of->{left});
@@ -456,19 +462,19 @@ sub build_chart {
     $of->{top}    = 36 unless (defined $of->{top});
     $of->{bottom} = 36 unless (defined $of->{bottom});
     $of->{errors} = 1 unless (defined $of->{errors});
-    $o->{ps}      = (ref($of) eq "PostScript::Graph::File") ? $of : new PostScript::Graph::File( $of );
+    $o->{ps}      = (ref($of) eq "PostScript::File") ? $of : new PostScript::File( $of );
 
-    # Calculate height of GraphPaper y axis
+    ## Calculate height of GraphPaper y axis
     # used as max_height for GraphKey
-    $oo->{paper} = {} unless (defined $oo->{paper});
-    my $oc       = $o->{opt}{paper};
+    $oo->{layout} = {} unless (defined $oo->{layout});
+    my $oc       = $o->{opt}{layout};
     my @bbox     = $o->{ps}->get_page_bounding_box();
     my $bottom   = defined($oc->{bottom_edge})  ? $oc->{bottom_edge}  : $bbox[1]+1;
     my $top      = defined($oc->{top_edge})     ? $oc->{top_edge}     : $bbox[3]-1;
     my $spc      = defined($oc->{spacing})      ? $oc->{spacing}      : 0;
     my $height   = $top - $bottom - 2 * $spc;
 
-    # Ensure max_height and num_lines are set for GraphKey
+    ## Ensure max_height and num_lines are set for GraphKey
     if ($o->{key}) {
 	$oo->{key} = {} unless (defined $oo->{key});
 	my $ok     = $o->{opt}{key};
@@ -486,13 +492,13 @@ sub build_chart {
 	$o->{gk}           = new PostScript::Graph::Key( $ok );
     }
 	
-    # Create GraphPaper now key width is known
+    ## Create GraphPaper now key width is known
     $oo->{file}      = $o->{ps};
     $oc->{key_width} = $o->{key} ? $o->{gk}->width() : 0;
     $o->{gp}         = new PostScript::Graph::Paper( $oo );
 
-    # Add in lines and key details
-    $o->ps_functions();
+    ## Add in lines and key details
+    PostScript::Graph::XY->ps_functions( $o->{ps} );
     $o->{gk}->build_key( $o->{gp} ) if ($o->{key});
     $o->{ps}->add_to_page( <<END_INTRO );
 	gpaperdict begin 
@@ -502,7 +508,7 @@ END_INTRO
     my $linenum = 1;
     foreach my $name ($first, @rest) {
 
-	# construct point data
+	## construct point data
 	my $line = $o->{line}{$name};
 	my $points = "";
 	foreach my $row (@{$line->{data}}) {
@@ -513,9 +519,10 @@ END_INTRO
 	}
 	# set style
 	my $style = $line->{style};
-	$style->background( $o->{gp}->paper_background() );
+	$style->background( $o->{gp}->layout_background() );
 	$style->write( $o->{ps} );
-	# prepare code for points and lines
+	
+	## prepare code for points and lines
 	my ($cmd, $keylines, $keyouter, $keyinner);
 	CASE: {
 	    if (    $o->{points} and     $o->{lines}) {
@@ -543,7 +550,8 @@ END_INTRO
 		$keyinner = "";
 	    }
 	}
-	# write graph and key code
+	
+	## write graph and key code
 	if ($cmd) {
 	    $o->{ps}->add_to_page( "[ $points ] $line->{last} $cmd\n" );
 	    $o->{gk}->add_key_item( $line->{ytitle}, <<END_KEY_ITEM ) if ($o->{key});
@@ -596,11 +604,103 @@ and adds a key.
 
 =cut
 
+=head1 SUPPORTING METHODS
+
+=cut
+
+sub file { 
+    return shift()->{ps}; 
+}
+
+=head2 file
+
+Return the underlying PostScript::File object.
+
+=cut
+
+sub graph_key { 
+    return shift()->{gk}; 
+}
+
+=head2 graph_key
+
+Return the underlying PostScript::Graph::Key object.  Only available after a call to B<build_chart>.
+
+=cut
+
+sub graph_paper { 
+    return shift()->{gp}; 
+}
+
+=head2 graph_paper
+
+Return the underlying PostScript::Graph::Paper object.  Only available after a call to B<build_chart>.
+
+=cut
+
+sub sequence { 
+    return shift()->{opt}{style}{sequence}; 
+}
+
+=head2 sequence()
+
+Return the style sequence being used.  This is only required when you wish to alter the ranges used by the auto
+style feature.
+
+=cut
+
+sub output { 
+    shift()->{ps}->output(@_);
+}
+
+=head2 output( file [, dir] )
+
+Output the chart as a file.  See L<PostScript::File/output>.
+
+=cut
+
+sub newpage { 
+    shift()->{ps}->newpage(@_);
+}
+
+=head2 newpage( [page] )
+
+Start a new page in the underlying PostScript::File object.  See L<PostScript::File/newpage> and
+L<PostScript::File/set_page_label>.
+
+=cut
+
+sub add_function {
+    shift()->{ps}->add_function(@_); 
+}
+
+=head2 add_function( name, code )
+
+Add functions to the underlying PostScript::File object.  See L<PostScript::File/add_function> for details.
+
+=cut
+
+sub add_to_page {
+    shift()->{ps}->add_to_page(@_);
+}
+
+=head2 add_to_page( [page], code )
+
+Add postscript code to the underlying PostScript::File object.  See L<PostScript::File/add_to_page> for details.
+
+=cut
+
+=head1 CLASS METHODS
+
+The PostScript functions are provided as a class method so they are available to modules not needing an XY object.
+
+=cut
+
 sub ps_functions {
-    my ($o) = @_;
+    my ($class, $ps) = @_;
     my $name = "XYChart";
     # dict entries: style fns=7, style code=19, here=6
-    $o->{ps}->add_function( $name, <<END_FUNCTIONS ) unless ($o->{ps}->has_function($name));
+    $ps->add_function( $name, <<END_FUNCTIONS ) unless ($ps->has_function($name));
 	/xychartdict 35 dict def
 	xychartdict begin
 	    % _ coords_array last => _
@@ -688,97 +788,11 @@ sub ps_functions {
 	end
 END_FUNCTIONS
 }
-# Internal method, called by build_chart
-
-=head1 SUPPORTING METHODS
-
-=cut
-
-sub file { 
-    return shift()->{ps}; 
-}
-
-=head2 file
-
-Return the underlying PostScript::Graph::File object.
-
-=cut
-
-sub graph_key { 
-    return shift()->{gk}; 
-}
-
-=head2 graph_key
-
-Return the underlying PostScript::Graph::Key object.  Only available after a call to B<build_chart>.
-
-=cut
-
-sub graph_paper { 
-    return shift()->{gp}; 
-}
-
-=head2 graph_paper
-
-Return the underlying PostScript::Graph::Paper object.  Only available after a call to B<build_chart>.
-
-=cut
-
-sub sequence { 
-    return shift()->{opt}{style}{sequence}; 
-}
-
-=head2 sequence()
-
-Return the style sequence being used.  This is only required when you wish to alter the ranges used by the auto
-style feature.
-
-=cut
-
-sub output { 
-    shift()->{ps}->output(@_);
-}
-
-=head2 output( file [, dir] )
-
-Output the chart as a file.  See L<PostScript::Graph::File/output>.
-
-=cut
-
-sub newpage { 
-    shift()->{ps}->newpage(@_);
-}
-
-=head2 newpage( [page] )
-
-Start a new page in the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/newpage> and
-L<PostScript::Graph::File/set_page_label>.
-
-=cut
-
-sub add_function {
-    shift()->{ps}->add_function(@_); 
-}
-
-=head2 add_function( name, code )
-
-Add functions to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_function> for details.
-
-=cut
-
-sub add_to_page {
-    shift()->{ps}->add_to_page(@_);
-}
-
-=head2 add_to_page( [page], code )
-
-Add postscript code to the underlying PostScript::Graph::File object.  See L<PostScript::Graph::File/add_to_page> for details.
-
-=cut
 
 =head1 BUGS
 
-Very likely.  This is still alpha software and has only been tested in very predictable conditions.
+This is still alpha software. It has only been tested in limited, predictable conditions and the interface is
+subject to change.
 
 =head1 AUTHOR
 
@@ -786,10 +800,10 @@ Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::Graph::File>, L<PostScript::Graph::Style>,  L<PostScript::Graph::Key>, L<PostScript::Graph::Paper>,
+L<PostScript::File>, L<PostScript::Graph::Style>,  L<PostScript::Graph::Key>, L<PostScript::Graph::Paper>,
 L<PostScript::Graph::Bar>, L<PostScript::Graph::Stock>.
 
 =cut
 
-##############################################################################
+
 1;

@@ -6,9 +6,13 @@ is written to a postscript file, either for printing directly or in EPS format
 for inclusion in another file.
 
 It would be used as follows:
-    (a) Create an XYChart object using the defaults or any of over 140 options.
+    (a) Create a PostScript::Graph::XY object using the defaults or any of over
+	140 options.
+    
     (b) Use the line_from_file() method to read graph data from a CSV file.
+    
     (c) Call build_chart() to assemble the postscript code which draws the graph.
+    
     (d) Use the output() method to save the postscript file.
 
 INSTALLATION
@@ -24,10 +28,15 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  PostScript::Graph::File
+  PostScript::File
   PostScript::Graph::Style
   PostScript::Graph::Key
   PostScript::Graph::Paper
+
+SEE ALSO
+
+  PostScript::Graph::Bar
+  PostScript::Graph::Stock
 
 COPYRIGHT AND LICENCE
 
