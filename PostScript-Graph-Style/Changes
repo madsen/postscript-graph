@@ -1,6 +1,16 @@
 Revision history for Perl extension PostScript::Graph::Style.
 
-0.03  Sun Nov 10 10:16:08 GMT 2002
+
+0.05	Wed Nov 20 11:22:32 GMT 2002
+	Changed Sequence defaults
+	Sequence no longer keeps track of style changes
+	Sequence reset mechanism changed
+	Corrected width defaults in Style
+	write() now uses PostScript::File to track style changes
+	support for user defined labels for styles added
+	Corrected failing test
+
+0.03	Sun Nov 10 10:16:08 GMT 2002
 	use PostScript::File
 	changed StyleSequence to PostScript::Graph::Sequence
 	outer 'color' option now 'use_color'
@@ -8,11 +18,11 @@ Revision history for Perl extension PostScript::Graph::Style.
 	added 'use_line' etc methods
 	'ps_functions' now a class function
 
-0.02  Sun Oct  6 11:24:28 GMT 2002
+0.02	Sun Oct  6 11:24:28 GMT 2002
 	added StyleSequence
 	now only sets changes rather than all settings
 	
-0.01  Fri Oct  4 18:26:12 2002
+0.01	Fri Oct  4 18:26:12 2002
 	- original version; created by h2xs 1.21 with options
 		-X -n PostScript-GraphStyle-0.01
 
