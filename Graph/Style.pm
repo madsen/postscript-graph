@@ -1,5 +1,5 @@
 package PostScript::Graph::Style;
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 use strict;
 use warnings;
 use PostScript::File 0.13 qw(str);
@@ -93,7 +93,7 @@ Or the automatic default feature can be supressed and some or all details specif
 	sequence     => $seq,
 	auto	     => [qw(red green blue)],
 	changes_only => 0,
-	same	     => 1,
+	bgnd_outline	     => 1,
 
 	line => {
 	    color	 => [0, 1, 0],
@@ -174,7 +174,7 @@ following functions return values set in the constructor.  See L</"new"> for mor
     point_inner_color()
     point_inner_width()
 
-    same()
+    bgnd_outline()
     sequence()
     
 =cut
@@ -421,7 +421,7 @@ of grey.  It is also possible to use arrays of red-green-blue colours:
 		bar   => {},
 	    );
 
-The full range of colours may be used provided that the 'same' style option has not been set.  By default each
+The full range of colours may be used provided that the 'bgnd_outline' style option has not been set.  By default each
 line, point and bar are outlined in the complementary colour to the background, making them stand out.
 
 More than one variable can be set of course.  For example the following would ensure lines with 15 shades of
@@ -538,7 +538,7 @@ sub new {
     
     $o->{label}   = $opt->{label};						# for debugging
     $o->{rel}     = defined($opt->{changes_only}) ? $opt->{changes_only} : 1;	# 'don't set everything'
-    $o->{same}    = defined($opt->{same})         ? $opt->{same}         : 0;	# 'don't complement bgnd'
+    $o->{same}    = defined($opt->{bgnd_outline})         ? $opt->{bgnd_outline}         : 0;	# 'don't complement bgnd'
     $o->{color}   = defined($opt->{use_color})    ? $opt->{use_color}    : 1;	# 'not monochrome'
     my $color     = $o->{color} ? [ $d->{red}, $d->{green}, $d->{blue} ] : $d->{gray};
    
@@ -621,7 +621,7 @@ A string identifying the style, added to the id().  The interaction between styl
 especially when using more than one sequence.  This label becomes part of the C<id> method and makes styles easier
 to track.
 
-=head3 same
+=head3 bgnd_outline
 
 By default, the outer colour is the complement of the background (see L</"outer_color">).  Setting this to 1 makes
 the outer colour the same as the background.
@@ -925,7 +925,7 @@ sub id {
     return "$seqid.$ownid$label $line$point$bar";
 }
 
-sub same { 
+sub bgnd_outline { 
     shift()->{same}; 
 }
 

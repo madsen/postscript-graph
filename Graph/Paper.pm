@@ -1,5 +1,5 @@
 package PostScript::Graph::Paper;
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 use strict;
 use warnings;
 use PostScript::File 0.13 qw(check_file array_as_string str);
@@ -904,6 +904,10 @@ sub init_bars {
 	push @labels, "($label)";
     }
     unless ($labels[$#labels] eq "()") {
+	push @labels, "()";
+    }
+    # kludge to avoid postscript divide-by-zero error I can't be bothered to trace
+    while ($#labels < 2) {
 	push @labels, "()";
     }
     

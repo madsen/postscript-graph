@@ -1,5 +1,5 @@
 package PostScript::Graph::Key;
-our $VERSION = 1.00;
+our $VERSION = 1.01;
 use strict;
 use warnings;
 use Exporter;
@@ -200,7 +200,7 @@ sub new {
     my $height     = $o->{height} - $margins;
     $height        = 1 unless $height > 0;
     if ($o->{nitems} * $o->{dy} <= $height) {
-	$o->{rows} = $o->{nitems};
+	$o->{rows} = $o->{nitems} || 1;
 	$o->{cols} = 1;
     } else {
 	$o->{rows} = int( $height/$o->{dy} ) || 1;

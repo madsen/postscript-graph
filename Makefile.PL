@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 use 5.6.1;
 WriteMakefile(
     NAME	  => 'PostScript::Graph',
-    VERSION	  => '1.00',
+    VERSION	  => '1.01',
     ABSTRACT      => 'PostScript::Graph - Adding graphs to PostScript files',
     PREREQ_PM	  => { 
 	'Exporter' => 0,
