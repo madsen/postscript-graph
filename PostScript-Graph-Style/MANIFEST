@@ -1,5 +1,10 @@
 Changes
 Makefile.PL
 MANIFEST
-GraphStyle.pm
+Style.pm
 README
+t/const.csv
+t/gs01simple.t
+t/gs02styles.t
+t/gs03const.pl
+t/gs04colour.pl

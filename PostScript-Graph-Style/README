@@ -1,10 +1,13 @@
-PostScript/GraphStyle version 0.01
-==================================
+PostScript::Graph::Style version 0.02
+=====================================
 
 This module provides support for styles of lines, points, bars and other objects
-drawn on a chart.  It accompanies PostScript::GraphPaper and
-PostScript::GraphKey and is not intended for independent use.  See one of the
-PostScript::...Chart modules for a top-level object.
+drawn on a chart.  It is not expected to be used independently.  See one of
+these  modules for a top-level object.
+
+    PostScript::Graph::XY
+    PostScript::Graph::Bar
+    PostScript::Graph::Stock
 
 INSTALLATION
 
@@ -12,15 +15,19 @@ To install this module type the following:
 
    perl Makefile.PL
    make
+   make test
    make install
 
-There are currently no installation tests.
+In the t directory there are a couple of .pl scripts which should be part of the
+test suite, but I can't figure out how to include them.  Run them from within
+the t directory.  The need to be run only if PostScript::Graph::Bar is
+installed, which would not normally be the case first time through.
 
 DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  PostScript::File 0.04
+    PostScript::Graph::File
 
 COPYRIGHT AND LICENCE
 
