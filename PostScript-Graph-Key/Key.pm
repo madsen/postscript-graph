@@ -4,7 +4,7 @@ use warnings;
 use PostScript::File qw(str);
 use PostScript::Graph::Paper;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -113,7 +113,7 @@ sub new {
     my $o = {};
     bless( $o, $class );
     
-    $o->{gp}       = defined($opt->{graph_paper})         ? $opt->{graph_paper}          : undef;
+    $o->{gp}       = defined($opt->{graph_paper})        ? $opt->{graph_paper}         : undef;
     my $ps         = defined($o->{gp})                   ? $o->{gp}->file()            : undef;
     $o->{ps}       = defined($opt->{file})               ? $opt->{file}                : $ps;
 
@@ -311,80 +311,17 @@ sub build_key {
 	    /kfont /$o->{tfont} def
 	    /ksize $o->{tsize} def
 	    /kcol $textc def
-	    ($o->{title}) /$o->{hfont} $o->{hsize} $o->{hcolor} $outlinec $fillc keybox
+	    ($o->{title}) /$o->{hfont} $o->{hsize} $o->{hcolor} $o->{owidth} $outlinec $fillc keybox
 	end
 END_CODE
 
-    $o->ps_functions($o->{ps});
+    PostScript::Graph::Key->ps_functions($o->{ps});
 }
 
 =head2 build_key( [graph_paper] )
 
 This is where the position of the key area is fixed and the outline and heading are drawn.  It must be called
 before B<add_key_item>.
-
-=cut
-
-sub ps_functions {
-    my ($o, $ps) = @_;
-    my $name = "GraphKey";
-    $ps->add_function( $name, <<END_FUNCTIONS ) unless ($ps->has_function($name));
-	/graphkeydict 20 dict def
-	graphkeydict begin
-	    % _ title tfont tsize tcol boxc fillc => _
-	    /keybox {
-		gpaperdict begin
-		graphkeydict begin
-		    newpath
-		    kx0 ky0 moveto
-		    kx1 ky0 lineto
-		    kx1 ky1 lineto
-		    kx0 ky1 lineto
-		    closepath
-		    gsave gpapercolor fill grestore
-		    gpapercolor stroke
-		    /tcol exch def
-		    /tsize exch def
-		    /tfont exch def
-		    tfont tsize tcol gpaperfont
-		    kx0 kx1 add 2 div
-		    ky1 tsize 1.2 mul sub
-		    centered
-		end end
-	    } bind def
-	
-	    % _ => _
-	    /movetoicon {
-		graphkeydict begin
-		    /kix0 kx0 kdx add khspc add def
-		    /kiy0 ky0 kdy add def
-		    /kix1 kix0 kdxicon add def
-		    /kiy1 kiy0 kdyicon add def
-		    kix0 kiy0 moveto
-		end
-	    } bind def
-		
-	    % _ => _
-	    /movetotext {
-		graphkeydict begin
-		    gpaperdict begin
-			kfont ksize kcol gpaperfont
-		    end    
-		    /ktx0 kx0 kdx add khspc add kdxicon add khspc add def
-		    /kty0 ky0 kdy add def
-		    /ktx1 ktx0 kdxtext add def
-		    /kty1 kty0 kdyicon add def
-		    ktx0 kty0 kty1 add 2 div ksize 2 div sub kvspc 2 div add moveto
-		end
-	    } bind def
-	end
-END_FUNCTIONS
-}
-
-=head3 ps_functions( ps )
-
-Normally, this is called in B<build_key>, but is provided seperately if the dictionary is required without the key
-being drawn.
 
 =cut
 
@@ -465,7 +402,71 @@ array of coordinates followed by the greatest index allowed.
 
 =cut
 
-##############################################################################
+sub ps_functions {
+    my ($class, $ps) = @_;
+    my $name = "GraphKey";
+    $ps->add_function( $name, <<END_FUNCTIONS ) unless ($ps->has_function($name));
+	/graphkeydict 20 dict def
+	graphkeydict begin
+	    % _ title tfont tsize tcol boxw boxc fillc => _
+	    /keybox {
+		gpaperdict begin
+		graphkeydict begin
+		    newpath
+		    kx0 ky0 moveto
+		    kx1 ky0 lineto
+		    kx1 ky1 lineto
+		    kx0 ky1 lineto
+		    closepath
+		    gsave gpapercolor fill grestore
+		    gpapercolor 
+		    setlinewidth
+		    [ ] 0 setdash
+		    stroke
+		    /tcol exch def
+		    /tsize exch def
+		    /tfont exch def
+		    tfont tsize tcol gpaperfont
+		    kx0 kx1 add 2 div
+		    ky1 tsize 1.2 mul sub
+		    centered
+		end end
+	    } bind def
+	
+	    % _ => _
+	    /movetoicon {
+		graphkeydict begin
+		    /kix0 kx0 kdx add khspc add def
+		    /kiy0 ky0 kdy add def
+		    /kix1 kix0 kdxicon add def
+		    /kiy1 kiy0 kdyicon add def
+		    kix0 kiy0 moveto
+		end
+	    } bind def
+		
+	    % _ => _
+	    /movetotext {
+		graphkeydict begin
+		    gpaperdict begin
+			kfont ksize kcol gpaperfont
+		    end    
+		    /ktx0 kx0 kdx add khspc add kdxicon add khspc add def
+		    /kty0 ky0 kdy add def
+		    /ktx1 ktx0 kdxtext add def
+		    /kty1 kty0 kdyicon add def
+		    ktx0 kty0 kty1 add 2 div ksize 2 div sub kvspc 2 div add moveto
+		end
+	    } bind def
+	end
+END_FUNCTIONS
+}
+
+=head3 ps_functions( ps )
+
+Normally, this is called in B<build_key>, but is provided as a class function so the dictionary may be still
+available even when a Key object is not required.
+
+=cut
 
 =head1 POSTSCRIPT CODE
 
@@ -502,5 +503,5 @@ L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Paper>.
 
 =cut
 
-##############################################################################
+
 1;
