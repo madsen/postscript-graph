@@ -1,8 +1,8 @@
 package PostScript::Graph::Paper;
-our $VERSION = 0.10;
+our $VERSION = 0.11;
 use strict;
 use warnings;
-use PostScript::File 0.12 qw(check_file array_as_string str);
+use PostScript::File 0.13 qw(check_file array_as_string str);
 
 # bit values for flags
 our $fl_bar    = 1;
@@ -200,7 +200,7 @@ sub new {
 	$o->init_scale("y", $opt->{y_axis});
     }
     
-    $o->common_code_for_scales();
+    PostScript::Graph::Paper->ps_functions($o->{ps});
     $o->draw_scales() unless ($opt->{layout}{no_drawing});
     
     return $o;
@@ -1552,12 +1552,11 @@ Here are some of the variables in the gpaperdict dictionary which might need to 
 =cut
 
  
-sub common_code_for_scales {
-    my ($o) = @_;
-    my $ch = $o->{ch};
+sub ps_functions {
+    my ($class, $ps) = @_;
 
     my $name = "GraphPaper";
-    $o->{ps}->add_function( $name, <<END_COMMON_FUNCTIONS ) unless ($o->{ps}->has_function($name));
+    $ps->add_function( $name, <<END_COMMON_FUNCTIONS ) unless ($ps->has_function($name));
 	/gpaperdict 120 dict def
 	gpaperdict begin
 	/finish 0 def

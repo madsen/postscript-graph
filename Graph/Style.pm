@@ -1,8 +1,8 @@
 package PostScript::Graph::Style;
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 use strict;
 use warnings;
-use PostScript::File 0.12 qw(str);
+use PostScript::File 0.13 qw(str);
 
 =head1 NAME
 
@@ -845,7 +845,6 @@ sub write {
     #warn '% style=' . $o->id() . ', prev=' . ($o->{prev} ? $o->{prev}->id() : 'undef') . "\n";
     
     my $settings = "gstyledict begin\n";
-    #$settings .= $dbg;
     $settings .= $o->array_value ('locolor') if ($o->{use_line});
     $settings .= $o->number_value('lowidth') if ($o->{use_line});
     $settings .= $o->array_value ('lostyle') if ($o->{use_line});
@@ -1112,6 +1111,7 @@ sub ps_functions {
 		    locolor gpapercolor
 		    lowidth setlinewidth
 		    lostyle 0 setdash
+		    2 setlinejoin
 		end end
 	    } bind def
 	    
@@ -1121,6 +1121,7 @@ sub ps_functions {
 		    licolor gpapercolor
 		    liwidth setlinewidth
 		    listyle 0 setdash
+		    2 setlinejoin
 		end end
 	    } bind def
 	    
@@ -1130,6 +1131,7 @@ sub ps_functions {
 		    pocolor gpapercolor
 		    powidth setlinewidth
 		    [ ] 0 setdash
+		    0 setlinejoin
 		end end
 	    } bind def
 	    
@@ -1139,6 +1141,7 @@ sub ps_functions {
 		    picolor gpapercolor
 		    piwidth setlinewidth
 		    [ ] 0 setdash
+		    0 setlinejoin
 		end end
 	    } bind def
 

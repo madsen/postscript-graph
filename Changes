@@ -1,36 +1,4 @@
-Revision history for Perl extension PostScript::Graph::Stock.
-
-0.05	Wed Nov 20 11:41:56 GMT 2002
-	Tidied up 'dates_by' handling
-	Changed defaults to work more naturally
-	Added 'glyph_ratio'
-	Adjusted misleading documentation
-	add...line()s beefed up, including id
-	Key now shows styles in order added
-	Scales now fit around lines too
-	Line Sequences now created on demand
-	Fixed 'undefined' bug in price data
-	Fixed 'confused styles' bug
-
-0.03	Sun Nov 10 10:35:13 GMT 2002
-	added proper 'use' lines
-	'build_chart' behaviour moved to 'output' by default
-	added 'smallest' option
-	various changes to documentation
-	extracted 'prepare_dates' as exported function
-	added 'data_from_data' method to reintegrate prepared data
-	data by months no longer shows volume
-	'build_chart' now 'build_graph', part of 'output' by default
-	added 'line_from_data' and code for drawing lines and Key
-	$o->{order} now $o->{dates} array
-	$o->{dates} now $o->{order} hash, (dates => label indexes)
-	'ps_functions' now a class method
-	tidied up documentation
-
-0.02	Sat Oct 19 14:36:20 GMT 2002
-	Added documentation and support for multiple date formats
-
 0.01	Fri Oct 11 11:50:13 2002
 	- original version; created by h2xs 1.21 with options
-		-X -n PostScript::Graph::Stock
+		-X -n PostScript::Graph::...
 

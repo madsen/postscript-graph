@@ -1,11 +1,11 @@
 package PostScript::Graph::Key;
-our $VERSION = 0.10;
+our $VERSION = 0.11;
 use strict;
 use warnings;
 use Exporter;
 use Carp;
-use PostScript::File	     0.12 qw(str);
-use PostScript::Graph::Paper 0.10;
+use PostScript::File	     0.13 qw(str);
+use PostScript::Graph::Paper 0.11;
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(split_lines);
@@ -72,18 +72,22 @@ before the graph Paper can be drawn in the remaining space.
 	outline_color => [0.5, 0.5, 0.2],
 	outline_wdith => 0.8,
 	spacing => 4,
-	horizontal_spacing => 4,
-	vertical_spacing => 6,
+	horz_spacing => 4,
+	vert_spacing => 6,
 	icon_height => 12,
 	icon_width => 40,
-	text_size => 10,
 	text_width => 72,
-	text_color => 0,
-	text_font => 'Courier',
+	text_font => {
+	    size => 10,
+	    color => 0,
+	    font => 'Courier',
+	},
 	title => 'My Key',
-	title_color => [1, 0, 0],
-	title_font => 'Times-Bold',
-	title_size => 14,
+	title_font => {
+	    color => [1, 0, 0],
+	    font => 'Times-Bold',
+	    size => 14,
+	},
     };
 
 =head1 DESCRIPTION
@@ -159,12 +163,12 @@ sub new {
     $o->{ps}       = defined($opt->{file})               ? $opt->{file}                : $ps;
 
     $o->{title}    = defined($opt->{title})              ? $opt->{title}               : "Key";
-    $o->{hcolor}   = defined($opt->{title_color})        ? $opt->{title_color}         : 0;
-    $o->{hfont}    = defined($opt->{title_font})         ? $opt->{title_font}          : 'Helvetica-Bold';
-    $o->{hsize}    = defined($opt->{title_size})         ? $opt->{title_size}          : 12;
-    $o->{tcolor}   = defined($opt->{text_color})         ? $opt->{text_color}          : 0;
-    $o->{tfont}    = defined($opt->{text_font})          ? $opt->{text_font}           : 'Helvetica';
-    $o->{tsize}    = defined($opt->{text_size})          ? $opt->{text_size}           : 10;
+    $o->{hcolor}   = defined($opt->{title_font}{color})  ? $opt->{title_font}{color}   : 0;
+    $o->{hfont}    = defined($opt->{title_font}{font})   ? $opt->{title_font}{font}    : 'Helvetica-Bold';
+    $o->{hsize}    = defined($opt->{title_font}{size})   ? $opt->{title_font}{size}    : 12;
+    $o->{tcolor}   = defined($opt->{text_font}{color})   ? $opt->{text_font}{color}    : 0;
+    $o->{tfont}    = defined($opt->{text_font}{font})    ? $opt->{text_font}{font}     : 'Helvetica';
+    $o->{tsize}    = defined($opt->{text_font}{size})    ? $opt->{text_font}{size}     : 10;
     $o->{ratio}    = defined($opt->{glyph_ratio})        ? $opt->{glyph_ratio}         : 0.44;
     $o->{twidth}   = defined($opt->{text_width})         ? $opt->{text_width}          : $o->{tsize} * 4;
     $o->{fcolor}   = defined($opt->{background})         ? $opt->{background}          : 1;
@@ -178,8 +182,8 @@ sub new {
     croak "Option 'num_items' must be given\nStopped" unless (defined $o->{nitems});
     
     $o->{spc}      = defined($opt->{spacing})            ? $opt->{spacing}             : 4;
-    $o->{vspc}     = defined($opt->{vertical_spacing})   ? $opt->{vertical_spacing}    : $o->{spc};
-    $o->{hspc}     = defined($opt->{horizontal_spacing}) ? $opt->{horizontal_spacing}  : $o->{spc} * 2;
+    $o->{vspc}     = defined($opt->{vert_spacing})       ? $opt->{vert_spacing}        : $o->{spc};
+    $o->{hspc}     = defined($opt->{horz_spacing})       ? $opt->{horz_spacing}        : $o->{spc} * 2;
     $o->{dxicon}   = defined($opt->{icon_width})         ? $opt->{icon_width}          : $o->{tsize};
     $o->{dyicon}   = defined($opt->{icon_height})        ? $opt->{icon_height}         : $o->{tsize};
     
@@ -225,14 +229,14 @@ needed, C<item_labels> can be given instead.  It should refer to a list of the s
 key icon.  The constructor calculates the number of rows needed when this text is wrapped within C<text_width>.
 The text is only actually wrapped when B<add_key_item> is called.
 
+=head3 background 
+
+Background colour for the key rectangle.  (Default: 1)
+
 =head3 file
 
 If C<graph_paper> is not given, this probably should be.  It is the PostScript::File object that holds the graph
 being constructed.  It is possible to specify this later, when calling B<add_key_item>.  (No default)
-
-=head3 background 
-
-Background colour for the key rectangle.  (Default: 1)
 
 =head3 glyph_ratio
 
@@ -360,6 +364,7 @@ sub build_key {
     $ky0 += $offset;
     $ky1 = $ky0 + $o->{height};
     my $textc = str($o->{tcolor});
+    my $headc = str($o->{hcolor});
     my $outlinec = str($o->{ocolor});
     my $fillc = str($o->{fcolor});
     
@@ -378,7 +383,7 @@ sub build_key {
 	    /kfont /$o->{tfont} def
 	    /ksize $o->{tsize} def
 	    /kcol $textc def
-	    ($o->{title}) /$o->{hfont} $o->{hsize} $o->{hcolor} $o->{owidth} $outlinec $fillc keybox
+	    ($o->{title}) /$o->{hfont} $o->{hsize} $headc $o->{owidth} $outlinec $fillc keybox
 	end
 END_CODE
 

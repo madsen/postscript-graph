@@ -3,10 +3,10 @@ our $VERSION = 0.03;
 use strict;
 use warnings;
 use Text::CSV_XS;
-use PostScript::File	     0.12 qw(check_file str);
-use PostScript::Graph::Key   0.10;
-use PostScript::Graph::Paper 0.10;
-use PostScript::Graph::Style 0.07;
+use PostScript::File	     0.13 qw(check_file str);
+use PostScript::Graph::Key   0.11;
+use PostScript::Graph::Paper 0.11;
+use PostScript::Graph::Style 0.08;
 
 =head1 NAME
 

@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 use 5.6.1;
 WriteMakefile(
     NAME	=> 'PostScript::Graph',
-    VERSION	=> '0.13',
+    VERSION	=> '0.14',
     ABSTRACT	=> 'Bar, line and scatter graphs from CSV to PostScript files',
     PREREQ_PM	=> { 
 	'Exporter' => 0,
