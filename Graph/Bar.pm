@@ -2,10 +2,10 @@ package PostScript::Graph::Bar;
 use strict;
 use warnings;
 use Text::CSV_XS;
-use PostScript::File qw(check_file str);
-use PostScript::Graph::Style;
-use PostScript::Graph::Paper;
-use PostScript::Graph::Key;
+use PostScript::File 0.1 qw(check_file str);
+use PostScript::Graph::Style 0.05;
+use PostScript::Graph::Paper 0.08;
+use PostScript::Graph::Key 0.04;
 
 our $VERSION = '0.02';
 

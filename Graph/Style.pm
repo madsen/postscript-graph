@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use PostScript::File 0.10 qw(str);
 
+our $VERSION = '0.05';
+
 =head1 NAME
 
 PostScript::Graph::Style - style settings for postscript objects
@@ -512,8 +514,6 @@ generated may not be predictable or even useful.
 ### PostScript::Graph::Style
 
 package PostScript::Graph::Style;
-
-our $VERSION = '0.05';
 
 =head1 CONSTRUCTOR
 

@@ -3,8 +3,8 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 8 };
-use PostScript::File qw(check_file);
-use PostScript::Graph::XY;
+use PostScript::File 0.10 qw(check_file);
+use PostScript::Graph::XY 0.03;
 ok(1);
 
 my $xy = new PostScript::Graph::XY(

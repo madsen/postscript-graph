@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use PostScript::Graph::Paper 0.08;
 
-use PostScript::Graph::Paper;
 my $gp = new PostScript::Graph::Paper();
 
 open(OUTFILE, ">", "02pa-defaults.t") or die "Unable to output file: $!\nStopped";
@@ -11,7 +11,7 @@ print <<'END_PROLOG';
 #!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 59 };
-use PostScript::Graph::Paper;
+use PostScript::Graph::Paper 0.08;
 ok(1); # module found
 
 my $gp = new PostScript::Graph::Paper();

@@ -1,10 +1,10 @@
 use Test;
 BEGIN { plan tests => 12 };
-use PostScript::File qw(check_file);
+use PostScript::File 0.10 qw(check_file);
 ok(1);
-use PostScript::Graph::Paper;
+use PostScript::Graph::Paper 0.08;
 ok(1);
-use PostScript::Graph::Key;
+use PostScript::Graph::Key 0.04;
 ok(1);
 
 my $gf = new PostScript::File();

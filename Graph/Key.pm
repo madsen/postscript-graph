@@ -1,8 +1,8 @@
 package PostScript::Graph::Key;
 use strict;
 use warnings;
-use PostScript::File qw(str);
-use PostScript::Graph::Paper;
+use PostScript::File 0.1 qw(str);
+use PostScript::Graph::Paper 0.08;
 
 our $VERSION = '0.04';
 

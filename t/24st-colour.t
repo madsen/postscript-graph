@@ -4,10 +4,10 @@ use warnings;
 
 use Test;
 BEGIN { plan tests => 6 };
-use PostScript::File qw(check_file);
-use PostScript::Graph::Bar;
+use PostScript::File 0.10 qw(check_file);
+use PostScript::Graph::Bar 0.02;
 ok(1);
-use PostScript::Graph::Style;
+use PostScript::Graph::Style 0.05;
 ok(1);
 
 my $bar = new PostScript::Graph::Bar(

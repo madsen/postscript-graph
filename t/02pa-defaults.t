@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 59 };
-use PostScript::Graph::Paper;
+use PostScript::Graph::Paper 0.08;
 ok(1); # module found
 
 my $gp = new PostScript::Graph::Paper();

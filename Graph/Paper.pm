@@ -1,7 +1,7 @@
 package PostScript::Graph::Paper;
 use strict;
 use warnings;
-use PostScript::File qw(check_file array_as_string str);
+use PostScript::File 0.1 qw(check_file array_as_string str);
 
 our $VERSION = '0.08';
 

@@ -1,8 +1,8 @@
 use Test;
 BEGIN { plan tests => 6 };
-use PostScript::File qw(check_file);
+use PostScript::File 0.10 qw(check_file);
 ok(1); # module found
-use PostScript::Graph::Paper;
+use PostScript::Graph::Paper 0.08;
 ok(1); # module found
 
 my $gp = new PostScript::Graph::Paper(

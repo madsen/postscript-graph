@@ -3,9 +3,9 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 8 };
-use PostScript::File qw(check_file);
+use PostScript::File 0.10 qw(check_file);
 ok(1);
-use PostScript::Graph::Style;
+use PostScript::Graph::Style 0.05;
 ok(1);
 
 my $gf = new PostScript::File();

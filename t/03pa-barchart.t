@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 64 };
-use PostScript::File qw(check_file);
-use PostScript::Graph::Paper;
+use PostScript::File 0.1 qw(check_file);
+use PostScript::Graph::Paper 0.08;
 ok(1); # module found
 
 sub array_cmp ($$) {
