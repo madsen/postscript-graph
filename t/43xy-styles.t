@@ -3,8 +3,8 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 9 };
-use PostScript::File 0.10 qw(check_file);
-use PostScript::Graph::Style 0.05;
+use PostScript::File         0.12 qw(check_file);
+use PostScript::Graph::Style 0.07;
 ok(1);
 use PostScript::Graph::XY 0.03;
 ok(1);
@@ -19,23 +19,26 @@ my $xy = new PostScript::Graph::XY(
 		debug      => 1,
 	    },
 	    layout  => {
-		left_edge  => 100,
+		heading_font => 'Times-Bold-Italic',
+		heading_font_size => 20,
+		heading_font_color => [0.3, 0, 0.6],
+		heading => 'Fixed ?',
+		left_edge  => 60,
 		background => [1, 1, 0.9],
+		dots_per_inch => 72,
 	    },
 	    x_axis => {
-		smallest   => 8,
+		smallest   => 0.5,
 	    },
 	    y_axis => {
 		smallest   => 4,
+		title	   => 'Dependent variable',
 	    },
 	    style  => {
-		auto       => [qw(dashes green)],
+		auto       => [qw(color dashes)],
 		same       => 0,
-		use_color  => 1,
 		line       => {
 		    width => 2,
-		},
-		point      => {
 		},
 	    }
 	);
@@ -53,9 +56,10 @@ ok(1);
 $xy->build_chart();
 ok(1);
 
-my $name = "43xy-styles";
-$xy->output( $name, "test-results" );
+my $name = "t/43xy-styles";
+$xy->output( $name );
 ok(1); # survived so far
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 24524);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

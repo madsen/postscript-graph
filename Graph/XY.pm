@@ -1,13 +1,12 @@
 package PostScript::Graph::XY;
+our $VERSION = 0.04;
 use strict;
 use warnings;
 use Text::CSV_XS;
-use PostScript::File 0.1 qw(check_file array_as_string);
-use PostScript::Graph::Paper 0.08;
-use PostScript::Graph::Style 0.05;
-use PostScript::Graph::Key 0.04;
-
-our $VERSION = '0.03';
+use PostScript::File	     0.12 qw(check_file array_as_string);
+use PostScript::Graph::Key   0.10;
+use PostScript::Graph::Paper 0.10;
+use PostScript::Graph::Style 0.07;
 
 =head1 NAME
 
@@ -30,12 +29,14 @@ Draw a graph from data in the CSV file 'results.csv', and saves it as 'results.p
 With more direct control:
 
     use PostScript::Graph::XY;
-    use PostScript::Graph::Style qw(defaults);
+    use PostScript::Graph::Style;
 
-    $PostScript::Graph::Style::defaults{gray} =
+    my $seq = PostScript::Graph::Sequence;
+    $seq->setup('color',
 	[ [ 1, 1, 0 ],	    # yellow
 	  [ 0, 1, 0 ],	    # green
-	  [ 0, 1, 1 ], ];   # cyan
+	  [ 0, 1, 1 ], ],   # cyan
+      );
 	
     my $xy = new PostScript::Graph::XY(
 	    file  => {
@@ -66,7 +67,7 @@ With more direct control:
 	    },
 	    
 	    style  => {
-		auto  => [qw(gray dashes)],
+		auto  => [qw(color dashes)],
 		color => 0,
 		line  => {
 		    inner_width  => 2,
@@ -266,24 +267,24 @@ sub line_from_array {
     $line->{ymax} = $ymax;
 }
 
-=head2 line_from_array( data [, label|opts|style ]... )
+=head2 line_from_array( data [, label | opts | style ]... )
 
-=over 4
+=over 8
 
-=item C<data>
+=item data
 
 An array reference pointing to a list of positions.  
 
-=item C<label>
+=item label
 
 A string to represent this line in the Key.
 
-=item C<opts>
+=item opts
 
 This should be a hash reference containing keys and values suitable for a PostScript::Graph::Style object.  If present,
 the object is created with the options specified.
 
-=item C<style>
+=item style
 
 It is also acceptable to create a PostScript::Graph::Style object independently and pass that in here.
 
@@ -318,30 +319,6 @@ name of the first line - rarely what you want.  Of course this is ignored if the
 was given.
 
 =cut
-
-sub split_data {
-    my $data = shift;
-    return ([[0, 0]]) unless (ref($data) eq "ARRAY");
-    my @res;
-    foreach my $row (@$data) {
-	if (ref($row) eq "ARRAY") {
-	    my ($x, @rest) = @$row;
-	    for (my $i = 0; $i <= $#rest; $i++) {
-		$res[$i] = [] unless (defined $res[$i]);
-		push @{$res[$i]}, [ $x, $rest[$i] ];
-	    }
-	}
-    }
-    return @res;
-}
-# Internal function
-# Splits array data of the form 
-# [ [x1, a1, b1, c1],
-#   [x2, a2, b2, c2], ]
-# to an array holding several arrays of (x,y) points
-# [ [ [x1, a1], [x2, a2] ],
-#   [ [x1, b1], [x2, b2] ],
-#   [ [x1, c1], [x2, c2] ], ]
 
 sub line_from_file {
     my ($o, $file, $style) = @_;
@@ -407,6 +384,31 @@ over both.
 Note that the headings have to begin with a non-digit in order to be recognized as such.
 
 =cut
+
+
+sub split_data {
+    my $data = shift;
+    return ([[0, 0]]) unless (ref($data) eq "ARRAY");
+    my @res;
+    foreach my $row (@$data) {
+	if (ref($row) eq "ARRAY") {
+	    my ($x, @rest) = @$row;
+	    for (my $i = 0; $i <= $#rest; $i++) {
+		$res[$i] = [] unless (defined $res[$i]);
+		push @{$res[$i]}, [ $x, $rest[$i] ];
+	    }
+	}
+    }
+    return @res;
+}
+# Internal function
+# Splits array data of the form 
+# [ [x1, a1, b1, c1],
+#   [x2, a2, b2, c2], ]
+# to an array holding several arrays of (x,y) points
+# [ [ [x1, a1], [x2, a2] ],
+#   [ [x1, b1], [x2, b2] ],
+#   [ [x1, c1], [x2, c2] ], ]
 
 sub build_chart {
     my $o = shift;
@@ -568,28 +570,28 @@ END_KEY_ITEM
     $o->{ps}->add_to_page( "end end end\n" );
 }
 
-=head2 build_chart([file|data [, label|opts|style ]... ])
+=head2 build_chart([ file | data [, label | opts | style ]... ])
 
-=over 4
+=over 8
 
-=item C<data>
+=item data
 
-An array reference pointing to a list of positions.  See L</"line_from_array">.
+An array reference pointing to a list of positions.  See L</line_from_array>.
 
-=item C<file>
+=item file
 
 The name of a CSV file.  See L</"line_from_file">.  
 
-=item C<label>
+=item label
 
 A string to represent this line in the Key.
 
-=item C<opts>
+=item opts
 
 This should be a hash reference containing keys and values suitable for a PostScript::Graph::Style object.  If present,
 the object is created with the options specified.
 
-=item C<style>
+=item style
 
 It is also acceptable to create a PostScript::Graph::Style object independently and pass that in here.
 
@@ -796,12 +798,12 @@ subject to change.
 
 =head1 AUTHOR
 
-Chris Willmot, chris@willmot.co.uk
+Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
 L<PostScript::File>, L<PostScript::Graph::Style>,  L<PostScript::Graph::Key>, L<PostScript::Graph::Paper>,
-L<PostScript::Graph::Bar>, L<PostScript::Graph::Stock>.
+L<PostScript::Graph::Bar>, L<Finance::Shares::Chart>.
 
 =cut
 

@@ -4,9 +4,9 @@ use warnings;
 
 use Test;
 BEGIN { plan tests => 23 };
-use PostScript::File 0.10 qw(check_file);
+use PostScript::File 0.12 qw(check_file);
 ok(1);
-use PostScript::Graph::Style 0.05;
+use PostScript::Graph::Style 0.07;
 ok(1);
 
 my $s1 = new PostScript::Graph::Sequence;
@@ -46,10 +46,11 @@ for (my $c = 0; $c < 4; $c++) {
 }
 ok(1);
 
-my $name = "22st-styles";
-$gf->output( $name, "test-results" );
+my $name = "t/22st-styles";
+$gf->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 4987);	# the chart looks different?
+warn "Don't worry, the results file should be blank:\n$psfile\n";
 

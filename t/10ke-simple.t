@@ -1,10 +1,11 @@
+#!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 12 };
-use PostScript::File 0.10 qw(check_file);
+use PostScript::File 0.12 qw(check_file);
 ok(1);
-use PostScript::Graph::Paper 0.08;
+use PostScript::Graph::Paper 0.10;
 ok(1);
-use PostScript::Graph::Key 0.04;
+use PostScript::Graph::Key 0.10;
 ok(1);
 
 my $gf = new PostScript::File();
@@ -31,10 +32,11 @@ ok($layout_keyw, $keyw);
 $gk->build_key( $gp );
 ok(1);
 
-my $name = "10ke-simple";
-$gf->output( $name, "test-results" );
+my $name = "t/10ke-simple";
+$gf->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 10714);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";
 

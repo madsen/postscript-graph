@@ -63,26 +63,24 @@ To install this module type the following:
     make install
 
 In the 't' directory there are various *.pl scripts as well as the *.t tests.
-The *.pl scripts are designed to be run WITHIN the t direcory, while *.t files
-should be run from the directory above.  Both produce results in the same
-test_results directory.  These *.ps files can be inspected with gv, KGhostView or
-any other postscript viewer.
+The *.pl scripts are designed to be run from the main direcory, just like the
+*.t files . The resulting *.ps files can be inspected with GhostView or any
+other postscript viewer.
 
 Dependencies
 ============
 
 This module requires these other modules and libraries:
 
+    Test::More
     Text::CSV_XS
-    Date::Pcalc
     PostScript::File
 
 
 See Also
 ========
 
-    PostScript::File
-    Finance::Shares::Graph
+    Finance::Shares::Chart
 
 
 Copyright and Licence

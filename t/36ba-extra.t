@@ -2,10 +2,9 @@
 use strict;
 use warnings;
 use Test;
-BEGIN { plan tests => 8 };
-use PostScript::File 0.10 qw(check_file);
-use PostScript::Graph::Style 0.05 qw(defaults);
-use PostScript::Graph::Bar 0.02;
+BEGIN { plan tests => 9 };
+use PostScript::File       0.12 qw(check_file);
+use PostScript::Graph::Bar 0.03;
 ok(1);
 
 my $bar = new PostScript::Graph::Bar(
@@ -17,6 +16,10 @@ my $bar = new PostScript::Graph::Bar(
 	layout  => {
 	    heavy_color => [0, 0, 0.7],
 	    mid_color => [0, 0.5, 1],
+	},
+	x_axis => {
+	    rotate => 0,
+	    show_lines => 1,
 	},
 	style => {
 	    auto => [qw(blue red green)],
@@ -43,7 +46,7 @@ $bar->series_from_array($data1, 0);
 ok(1);
 
 my $data3 =
-    [ [ "", "Third", "Forth", ],
+    [ [ "", "Third", "Fourth", ],
       [ "aaa", 11, 12, ],
       [ "bbb", 12, 13, ],
       [ "eee", 15, 16, ],
@@ -55,9 +58,10 @@ ok(1);
 $bar->build_chart();
 ok(1);
 
-my $name = "36ba-extra";
-$bar->output( $name, "test-results" );
+my $name = "t/36ba-extra";
+$bar->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 23599);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

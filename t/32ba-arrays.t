@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 use Test;
-BEGIN { plan tests => 6 };
-use PostScript::File 0.10 qw(check_file);
-use PostScript::Graph::Bar 0.02;
+BEGIN { plan tests => 7 };
+use PostScript::File 0.12 qw(check_file);
+use PostScript::Graph::Bar 0.03;
 ok(1);
 
 my $bar = new PostScript::Graph::Bar(
@@ -19,6 +19,7 @@ my $bar = new PostScript::Graph::Bar(
 	    },
 	    x_axis => {
 		smallest   => 8,
+		rotate	   => 0,
 	    },
 	    y_axis => {
 		smallest   => 4,
@@ -40,9 +41,10 @@ ok(1);
 $bar->build_chart();
 ok(1);
 
-my $name = "32ba-arrays";
-$bar->output( $name, "test-results" );
+my $name = "t/32ba-arrays";
+$bar->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 29500);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

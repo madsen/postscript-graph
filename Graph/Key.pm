@@ -1,10 +1,14 @@
 package PostScript::Graph::Key;
+our $VERSION = 0.10;
 use strict;
 use warnings;
-use PostScript::File 0.1 qw(str);
-use PostScript::Graph::Paper 0.08;
+use Exporter;
+use Carp;
+use PostScript::File	     0.12 qw(str);
+use PostScript::Graph::Paper 0.10;
 
-our $VERSION = '0.04';
+our @ISA = qw(Exporter);
+our @EXPORT_OK = qw(split_lines);
 
 =head1 NAME
 
@@ -17,6 +21,9 @@ PostScript::Graph::Key - a Key area for PostScript::Graph::Paper
     use PostScript::Graph::Paper;
     
 =head2 Typical
+
+A Key panel is drawn to the right of its associated graph.  The area needed for the Key panel must be calculated
+before the graph Paper can be drawn in the remaining space.
 
     my $ps = new PostScript::File;
     my @bbox = $psf->get_page_bounding_box();
@@ -56,7 +63,7 @@ PostScript::Graph::Key - a Key area for PostScript::Graph::Paper
 
 =head2 All options
 
-    my $gp = new PostScript::Graph::Paper(
+    my $gp = new PostScript::Graph::Key(
 	file => $ps_file,
 	graph_paper => $ps_gpaper,
 	max_height => 500,
@@ -90,10 +97,44 @@ something useful, see
 
 A companion object to PostScript::Graph::Paper, this is used by any module that requies a Key for a graph.  The
 size and shape is automatically adjusted to accomodate the number of items in the space available, adding more
-columns if there is not enough vertical space.
+columns if there is not enough vertical space.  The textual description now wraps onto multiple lines if needed.
 
-The opportunity is provided to draw an icon with each key item.  Ideally, this should use the same code and style
-as is used on the graph.
+The opportunity is provided to draw an icon with each key item using the same code and style as is used on the
+graph.  This is accomplished in distinct phases.  
+
+=over 4
+
+=item *
+
+The total space available is typically obtained from PostScript::File, but must be known so that
+PostScript::Graph::Key and PostScript::Graph::Paper can divide it between them.
+
+=item *
+
+All the graph lines must exist before the graph is drawn.  PostScript::Graph::Paper needs to calculate the axes
+and suggest the height available for the Key which will be placed to the right of the graph.
+
+=item *
+
+The PostScript::Graph::Key constructor calculates the outer box dimensions from the items required and the space
+available.  In particular the number of text rows per item must be worked out and how many columns will be needed.
+
+=item *
+
+The key width can then be passed to the PostScript::Graph::Paper constructor, which works out the space available
+for the graph and usually draws the background grid.
+
+=item *
+
+B<build_key> can then be called to draw the outer box and heading next to the grid.
+
+=item *
+
+For each graph line, the line can be drawn on the paper and its icons drawn in the key box at the same time, using
+the same PostScript::Graph::Style settings.
+
+=back
+
 
 =head1 CONSTRUCTOR
 
@@ -105,7 +146,7 @@ sub new {
     if (@_ == 1) { 
 	$opt = $_[0]; 
     } elsif (@_ == 2 and $_[0]+0 > 0) {
-	($opt->{max_height}, $opt->{num_lines}) = @_; 
+	($opt->{max_height}, $opt->{num_items}) = @_; 
     } else { 
 	%$opt = @_; 
     }
@@ -124,15 +165,17 @@ sub new {
     $o->{tcolor}   = defined($opt->{text_color})         ? $opt->{text_color}          : 0;
     $o->{tfont}    = defined($opt->{text_font})          ? $opt->{text_font}           : 'Helvetica';
     $o->{tsize}    = defined($opt->{text_size})          ? $opt->{text_size}           : 10;
+    $o->{ratio}    = defined($opt->{glyph_ratio})        ? $opt->{glyph_ratio}         : 0.44;
     $o->{twidth}   = defined($opt->{text_width})         ? $opt->{text_width}          : $o->{tsize} * 4;
     $o->{fcolor}   = defined($opt->{background})         ? $opt->{background}          : 1;
     $o->{ocolor}   = defined($opt->{outline_color})      ? $opt->{outline_color}       : 0;
     $o->{owidth}   = defined($opt->{outline_width})      ? $opt->{outline_width}       : 0.75;
     
-    die "Option 'max_height' must be given\nStopped" unless (defined $opt->{max_height});
-    die "Option 'num_items' must be given\nStopped" unless (defined $opt->{num_items});
     $o->{height}   = $opt->{max_height};
-    $o->{nitems}   = $opt->{num_items};
+    $o->{items}	   = $opt->{item_labels};
+    $o->{nitems}   = defined($o->{items}) ? $o->wrapped_items() : $opt->{num_items};
+    croak "Option 'max_height' must be given\nStopped" unless (defined $o->{height});
+    croak "Option 'num_items' must be given\nStopped" unless (defined $o->{nitems});
     
     $o->{spc}      = defined($opt->{spacing})            ? $opt->{spacing}             : 4;
     $o->{vspc}     = defined($opt->{vertical_spacing})   ? $opt->{vertical_spacing}    : $o->{spc};
@@ -142,15 +185,21 @@ sub new {
     
     $o->{dx}       = $o->{hspc} + $o->{dxicon} + $o->{hspc} + $o->{twidth} + $o->{hspc};
     $o->{dyicon}   = ($o->{dyicon} > $o->{tsize} ? $o->{dyicon} : $o->{tsize});	       # dyicon always >= tsize
-    $o->{dy}       = $o->{vspc} + $o->{dyicon};					       # space above each item
+    $o->{dy}       = 2 * $o->{vspc} + $o->{dyicon};				       # space above each item
+    # TODO
+    # {dy} is the same for all lines, whether with line icon, point icon or text only.
+    # When wrapping invoked, wrapped_items() should return an array of lines,
+    # the icon size only counting if > TOTAL of all lines.
+    #
     $o->{tmargin}  = ($o->{tsize} * 2 + $o->{vspc});
     my $margins    = $o->{tmargin} + 2 * $o->{vspc};
     my $height     = $o->{height} - $margins;
+    $height        = 1 unless $height > 0;
     if ($o->{nitems} * $o->{dy} <= $height) {
 	$o->{rows} = $o->{nitems};
 	$o->{cols} = 1;
     } else {
-	$o->{rows} = int( $height/$o->{dy} );
+	$o->{rows} = int( $height/$o->{dy} ) || 1;
 	my $cols   = $o->{nitems}/$o->{rows};
 	$o->{cols} = $cols > int($cols) ? int($cols)+1 : int($cols);
     }
@@ -171,6 +220,11 @@ used as part of another Chart object, with these options passed as a group throu
 
 All values are in PostScript native units (1/72 inch).
 
+If C<num_items> is an integer, the textual description will have one line per item.  Where long descriptions are
+needed, C<item_labels> can be given instead.  It should refer to a list of the strings to be placed next to each
+key icon.  The constructor calculates the number of rows needed when this text is wrapped within C<text_width>.
+The text is only actually wrapped when B<add_key_item> is called.
+
 =head3 file
 
 If C<graph_paper> is not given, this probably should be.  It is the PostScript::File object that holds the graph
@@ -179,6 +233,12 @@ being constructed.  It is possible to specify this later, when calling B<add_key
 =head3 background 
 
 Background colour for the key rectangle.  (Default: 1)
+
+=head3 glyph_ratio
+
+A kludge provided to fine-tune how well the text labels fit into the box.  It is not possible to get the actual
+width of proportional font strings from PostScript, so this gives the opportunity to guess an 'average width' for
+particular fonts.  (Default: 0.5)
 
 =head3 graph_paper
 
@@ -199,14 +259,21 @@ Vertical space for each icon.  This will never be smaller than the height of the
 
 Amount of horizontal space to allow for the icon to the left of each label.  (Defaults to C<text_size>)
 
+=head3 item_labels
+
+As an alternative to specifying the number of items (which must be single lines of text), this takes an array ref
+pointing to a list of all the key labels that will later be added.  The same wrapping algorithm is applied to
+both.  The box dimensions are calculated from these, but the actual text printed should be passed seperately to
+B<add_key_item>.
+
 =head3 max_height
 
 The vertical space available for the key rectangle.  GraphKey tries to fit as many items as possible within this
-before adding another column.
+before adding another column.  Required - there is no default.
 
 =head3 num_items
 
-The number of items that will be placed in the key.
+The number of items that will be placed in the key.  Required unless C<item_labels> is given.
 
 =head3 outline_color
 
@@ -332,38 +399,59 @@ sub add_key_item {
     $o->{ps} = $ps if     (defined $ps);
     die "No PostScript::File object to write to\nStopped" unless (ref($o->{ps}) eq "PostScript::File");
     
-    my $n   = $o->{current}++;
+    my @lines = $o->{items} ? $o->wrapped_items(ucfirst $label) : ucfirst($label);
+    my $tsize = $o->{tsize} + $o->{vspc};
+    
+    my $n   = $o->{current};
     my $col = int( $n/$o->{rows} );
-    my $row = $n - $col * $o->{rows};
+    my $end = int( ($n+$#lines)/$o->{rows} );
+    my $row;
+    if ($col == $end) {
+	$row = $n - $col * $o->{rows};
+    } else {
+	$row = 0;
+	$col = $end;
+    }
     my $kdx = $col * $o->{dx};
     my $kdy = $o->{height} - $o->{tmargin} - ($row+1) * $o->{dy};
+    # The gstyledict kludge is to ensure the point is shown centrally in the icon.
+    # This may not be what is always wanted, but was put in to accomodate arrows (without lines)
     $o->{ps}->add_to_page( <<END_ITEM );
 	graphkeydict begin
 	    /kdx $kdx def
 	    /kdy $kdy def
 	    newpath
 	    movetoicon
-	    $code
-	    stroke
+	    gstyledict begin
+		/tppdy ppdy def /ppdy 0 def
+		/tppdx ppdx def /ppdx 0 def
+		$code
+		stroke
+		/ppdy tppdy def
+		/ppdx tppdx def
+	    end
 	    movetotext
-	    ($label) show
-	end
 END_ITEM
+    foreach my $line (@lines) {
+	$o->{ps}->add_to_page("($line) show $tsize movedown\n");
+	$o->{current}++;
+    }
+    $o->{ps}->add_to_page("end\n");
 }
 
 =head2 add_key_item( label, code [, psfile] )
 
-=over 4
+=over 8
 
-=item C<label>
+=item label
 
 The text for this key item
 
-=item C<code>
+=item code
 
 Postscript code which draws the icon.
 
-=item C<psfile>
+=item psfile
 
 The PostScript::File object the code will be written to.  If it was not given to B<new> as either C<file> or
 C<graph_paper>, it must be given here.
@@ -401,6 +489,39 @@ array of coordinates followed by the greatest index allowed.
     END_KEY_ITEM
 
 =cut
+
+sub wrapped_items {
+    my $o = shift;
+    my @items = @_ ? @_ : @{$o->{items}};
+    my @split;
+    my $nchars = $o->{twidth}/($o->{tsize}*$o->{ratio});
+    foreach my $text (@items) {
+	push @split, split_lines($text, $nchars);
+    }
+    return @split;
+}
+# Fit labels in $o->{items} array so they fit within $o->{twidth}
+# Returning number of lines required in total.
+
+sub split_lines {
+    my ($text, $nchars) = @_;
+    my @split_text;
+    while ($text) {
+	my ($left, $right);
+	if (length $text <= $nchars) {
+	    $left = $text;
+	    $right = '';
+	} else {
+	    $left = substr $text, 0, $nchars;
+	    $right = substr $text, $nchars;
+	    $left =~ s/\s+(\S*)$//;
+	    $right = $1 . $right if $1;
+	}
+	push @split_text, $left;
+	$text = $right;
+    }
+    return @split_text;
+}
 
 sub ps_functions {
     my ($class, $ps) = @_;
@@ -457,6 +578,15 @@ sub ps_functions {
 		    ktx0 kty0 kty1 add 2 div ksize 2 div sub kvspc 2 div add moveto
 		end
 	    } bind def
+
+	    % tsize => _
+	    /movedown {
+		graphkeydict begin
+		    /kty0 1 index kty0 exch sub def
+		    /kty0 exch kty0 exch sub def
+		    ktx0 kty0 kty1 add 2 div ksize 2 div sub kvspc 2 div add moveto
+		end
+	    } bind def
 	end
 END_FUNCTIONS
 }
@@ -491,15 +621,17 @@ variables are defined within the C<graphkeydict> dictionary and may be of some u
 
 =head1 BUGS
 
-Very likely.  This is still alpha software and has only been tested in very predictable conditions.
+Too much space is allocated to wrapped text if accompanied by a large icon.
 
 =head1 AUTHOR
 
-Chris Willmot, chris@willmot.co.uk
+Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Paper>.
+L<PostScript::File>, L<PostScript::Graph::Style> and L<PostScript::Graph::Paper> for the other modules in this suite.
+
+L<PostScript::Graph::Bar>, L<PostScript::Graph::XY> and L<Finance::Shares::Chart> for modules that use this one.
 
 =cut
 

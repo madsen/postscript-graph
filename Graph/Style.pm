@@ -1,9 +1,8 @@
 package PostScript::Graph::Style;
+our $VERSION = 0.07;
 use strict;
 use warnings;
-use PostScript::File 0.10 qw(str);
-
-our $VERSION = '0.05';
+use PostScript::File 0.12 qw(str);
 
 =head1 NAME
 
@@ -70,7 +69,7 @@ Some of the styles may be overriden.
 
     my $style = new PostScript::Graph::Style(
 		sequence  => $seq,
-		auto      => [qw(blue yellow)],
+		auto      => [qw(color dashes)],
 		line      => {
 		    width        => 4,
 		    outer_dashes => [],
@@ -183,6 +182,7 @@ following functions return values set in the constructor.  See L</"new"> for mor
 ### PostScript::Graph::Sequence
 
 package PostScript::Graph::Sequence;
+use PostScript::File qw(str);
 
 # Largely for testing
 our $sequence_id = 1;
@@ -199,10 +199,8 @@ sub new {
     $o->{red}     = [ 0.5, 1, 0 ],
     $o->{green}   = [ 0, 0.5, 0.25, 0.75, 1 ],
     $o->{blue}    = [ 0, 1, 0.5 ],
-    $o->{yellow}  = [ 0.9, 0.2, 0.5 ],
-    $o->{mauve}   = [ 0.9, 0.2, 0.5 ],
-    $o->{cyan}    = [ 0.9, 0.2, 0.5 ],
     $o->{gray}    = [ 0.6, 0, 0.45, 0.15, 0.75, 0.3, 0.9 ],
+    $o->{color}   = [ [0.8,0.8,0], [0,0.5,0.5], [0.3,0,0.3], [0.9,0.3,0] ],
     $o->{shape}   = [qw(dot cross square plus diamond circle)],
     $o->{width}   = [ 0.5, 1, 3, 2 ],
     $o->{dashes}  = [ [], [9, 9], [3, 3], [9, 3], [3, 9], [9, 3, 3, 3] ],
@@ -276,7 +274,7 @@ sub doreset {
     @{$o->{count}} = ();
     
     foreach my $ch (@$list) {
-	push @{$o->{choices}}, $ch if (defined $o->{$ch});
+	push @{$o->{choices}}, $ch if ($ch and defined $o->{$ch});
     }
     if (@{$o->{choices}} == 0) {
 	$o->{choices} = [ qw(dashes shape width size) ];
@@ -300,6 +298,7 @@ sub defaults {
     $ref{green} = 0;
     $ref{blue} = 0;
     $ref{gray} = 0;
+    $ref{color} = [0,0.5,0.5];
     $ref{shape} = 'dot';
     $ref{width} = 0.5;
     $ref{dashes} = [];
@@ -317,36 +316,24 @@ sub output_row {
 	my $key    = $o->{choices}[$i];
 	my $chosen = $o->{count}[$i];
 	my $value  = $o->{$key}[$chosen];
-	CASE: {
-	    if ($key =~ /yellow/) {
-		$r->{red}   = $value;
-		$r->{green} = $value;
-		last CASE;
+	#warn "key=$key, chosen=$chosen, value=$value\n";
+	if ($key eq 'color' or $key eq 'gray') {
+	    if (ref($value) eq "ARRAY") {
+		$r->{red}   = $value->[0];
+		$r->{green} = $value->[1];
+		$r->{blue}  = $value->[2];
+	    } else {
+		$r->{red}   = $value;# * 0.3;
+		$r->{green} = $value;# * 0.59;
+		$r->{blue}  = $value;# * 0.11;
 	    }
-	    if ($key =~ /mauve/) {
-		$r->{red}   = $value;
-		$r->{blue}  = $value;
-		last CASE;
-	    }
-	    if ($key =~ /cyan/) {
-		$r->{green} = $value;
-		$r->{blue}  = $value;
-		last CASE;
-	    }
-	    if ($key =~ /gray/) {
-		if (ref($value) ne "ARRAY") {
-		    $r->{red}   = $value * 0.3;
-		    $r->{green} = $value * 0.59;
-		    $r->{blue}  = $value * 0.11;
-		}
-		$r->{gray}  = $value;
-		last CASE;
-	    }
-	    $r->{$key} = $value if (defined $r->{$key});
+	} else {
+	    $r->{$key} = $value if (defined $r->{$key} and defined $value);
 	}
     }
     $r->{pstyle} = $o->{pstyle};
     #print "count = " . join(", ", @{$o->{count}}) . "\n";
+    #warn "rgb=[$r->{red},$r->{green},$r->{blue}] ($r->{gray}) c=",str($r->{color})," '$r->{shape}'($r->{size}) w=$r->{width}, ",str($r->{dashes}),"\n";
     return $r;
 }
 # Internal method
@@ -402,11 +389,10 @@ Example
 C<array> is always an array reference as in the example.  C<key> may be one of the following.
 
     red	    green   blue
-    yellow  mauve   cyan
-    gray    shape   size
-    dashes  width
+    gray    color   width
+    dashes  shape   size
     
-Mostly, their arrays contain integers (0 to 1.0 for colours).  The exceptions are C<dashes>, C<shape> and
+Mostly, their arrays contain integers (0 to 1.0 for colours).  The exceptions are C<dashes>, C<shape>, C<color> and
 possibly C<gray>.
 
 See L</"inner_dashes"> for details on the arrays required for dashes.  Suitable values for shape can be one of
@@ -416,12 +402,11 @@ these entries, taken from the default array.
     $seq->setup( "shape",
 	[ qw(cross plus dot circle square diamond) ]);
 
-<gray> allows the user to define custom colour sequences.  The 'color' style option must be set for this, see
-L</"color">.  If the gray array is filled with decimals between 0 and 1 (inclusive), the result is varying shades
-of grey.  However, it is also possible to use arrays of red-green-blue colours:
+If the gray array is filled with decimals between 0 and 1 (inclusive), the result is varying shades
+of grey.  It is also possible to use arrays of red-green-blue colours:
     
     my $seq = new PostScript::Graph::Sequence();
-    $seq->setup( "gray",
+    $seq->setup( "color",
 	[ [ 0, 0, 0 ],	    # white
 	  [ 0, 0, 1 ],	    # blue
 	  [ 0, 1, 0 ],	    # green
@@ -432,8 +417,7 @@ of grey.  However, it is also possible to use arrays of red-green-blue colours:
 	  [ 1, 1, 1 ], ]);  # black
 
     my $gs = new PostScript::Graph::Style(
-		auto  => [qw(gray)],
-		color => 0,
+		auto  => [qw(color)],
 		bar   => {},
 	    );
 
@@ -465,9 +449,8 @@ features not mentioned will not be varied.  See L</"Style Generation"> for how t
 features.  
 
     red	    green   blue
-    yellow  mauve   cyan
-    gray    dashes  width
-    shape   size
+    gray    color   width
+    dashes  shape   size
 
 If not set directly, it may be set from the C<auto> option given to the first PostScript::Graph::Style object created
 using this sequence.
@@ -499,19 +482,21 @@ sub default {
     return $default_seq;
 }
 
+=head3 default()
+
+Return a fallback PostScript::Graph::Sequence.  Note that these are global settings possibly called by many,
+unrelated objects, so the sequences generated may not be predictable or even useful.
+
+=cut
+
 # The fallback sequence if none given
 our $default_seq;
 
 =head2 Class Methods
 
-=head3 default()
-
-Return a fallback PostScript::Graph::Sequence.  Note that this is possibly called by many, unrelated objects, so the sequences
-generated may not be predictable or even useful.
+### PostScript::Graph::Style
 
 =cut
-
-### PostScript::Graph::Style
 
 package PostScript::Graph::Style;
 
@@ -592,7 +577,10 @@ sub new {
     if ($pp) {
 	my $pwidth     = defined($pp->{width})         ? $pp->{width}         : $width;
 	$o->{ppsize}   = defined($pp->{size})          ? $pp->{size}          : $d->{size};
+	$o->{ppdx}     = defined($pp->{x_offset})      ? $pp->{x_offset}      : 0;
+	$o->{ppdy}     = defined($pp->{y_offset})      ? $pp->{y_offset}      : 0;
 	$o->{ppshape}  = defined($pp->{shape})         ? $pp->{shape}         : $d->{shape};
+	#warn "Style:587 $o->{ppshape} = ", ($pp->{shape} ? $pp->{shape} : '<undef>'), " default=$d->{shape}\n";
 	
 	$o->{pocolor} = defined($pp->{outer_color})   ? $pp->{outer_color}   : -1;
 	$o->{powidth} = defined($pp->{outer_width})   ? $pp->{outer_width}   : 2 * $pwidth;
@@ -612,9 +600,9 @@ These are mainly concerned with how the defaults are generated for each new Post
 
 =head3 auto
 
-Setting C<auto> to the string 'none' prevents the automatic generation of defaults.  Of course every option could
-be set directly, too, so the defaults are never needed.  Otherwise this may be a list of features (see the B<auto>
-method for PostScript::Graph::Sequence, above).
+Setting C<auto> to the string 'none' prevents the automatic generation of defaults.  Of course the same result
+could be obtained by setting every option so the defaults are never needed.  Otherwise this may be a list of
+features (see the B<auto> method for PostScript::Graph::Sequence, above).
 
 =head3 changes_only
 
@@ -710,8 +698,8 @@ This array ref holds values that determine any dash pattern.  They are repeated 
 then 'off'.  Examples are the best way to describe this.
 
     inner_dashes => []		-------------------------
-    inner_dashes => [ 3 3 ]	---   ---   ---   ---   -
-    inner_dashes => [ 5 2 1 2 ]	-----  -  -----  -  -----
+    inner_dashes => [ 3,3 ]	---   ---   ---   ---   -
+    inner_dashes => [ 5,2,1,2 ]	-----  -  -----  -  -----
 
 Only available for lines.
 
@@ -751,8 +739,13 @@ circle.
 
 =head3 shape
 
-This string specifies the built-in shape to use for points.  Suitable values are "plus", "cross", "dot", "circle",
-"square" and "diamond".  (Default: "dot")
+This string specifies the built-in shape to use for points.  Suitable values are:
+
+    north   south   east    west
+    plus    cross   dot	    circle
+    square  diamond  
+
+(Default: "dot")
 
 Only available for points.
 
@@ -765,6 +758,39 @@ Not available for lines.
 =head3 width
 
 Set the inner line width.  The outer width is also set to twice this value.
+
+=head3 x_offset
+
+Move the active position of a point from the centre to somewhere else.  Useful for arrows.
+
+Example
+
+By default, a left-pointing arrow will be drawn centrally over the specified point.  However, specifying an
+C<x_offset> of 0.75 the size, it will now be drawn with the arrow tip at the point instead (the left edge of the
+icon).  In practice, making the offset a little larger allows for the unbevelled point which becomes quite
+pronounced as the line width increases.
+
+    point => {
+	shape	 => 'east',
+	size	 => 6,
+	x_offset => -6,
+    }
+
+=head3 y_offset
+
+Move the active position of a point from the centre to somewhere else.  Useful for arrows.
+
+Example
+
+By default, an up-pointing arrow will be drawn centrally over the specified point.  However, specifying an
+C<y_offset> of 0.75 the size, it will now be drawn with the arrow tip at the point instead (the top edge of the
+icon).
+
+    point => {
+	shape	 => 'north',
+	size	 => 6,
+	y_offset => 6,
+    }
 
 =cut
 
@@ -816,8 +842,7 @@ sub write {
     $o->ps_functions($ps);	    # only active on first call
  
     $o->{prev} = $ps->get_page_variable('PostScript::Graph::Style');
-    #my $dbg = '% style=' . $o->id() . ', prev=' . ($o->{prev} ? $o->{prev}->id() : 'undef') . "\n";
-    #print $dbg;
+    #warn '% style=' . $o->id() . ', prev=' . ($o->{prev} ? $o->{prev}->id() : 'undef') . "\n";
     
     my $settings = "gstyledict begin\n";
     #$settings .= $dbg;
@@ -829,6 +854,8 @@ sub write {
     $settings .= $o->array_value ('listyle') if ($o->{use_line});
     $settings .= $o->shape_value ('ppshape') if ($o->{use_point});
     $settings .= $o->number_value('ppsize')  if ($o->{use_point});
+    $settings .= $o->number_value('ppdx')    if ($o->{use_point});
+    $settings .= $o->number_value('ppdy')    if ($o->{use_point});
     $settings .= $o->number_value('powidth') if ($o->{use_point});
     $settings .= $o->array_value ('pocolor') if ($o->{use_point});
     $settings .= $o->array_value ('picolor') if ($o->{use_point});
@@ -1058,12 +1085,12 @@ Sets the colour and width for a bar's edge.
 =head2 Drawing Functions
 
 The functions which draw the shapes all remove 'x y' from the stack.  They use a variable 'ppsize' which should be
-the total width of the shape.
+the total width of the shape, although the elongated shapes are 1.5 times this on the longer side.
 
-    make_plus
-    make_cross
-    make_dot
-    make_circle
+    make_plus	    make_north
+    make_cross	    make_south
+    make_dot	    make_east
+    make_circle	    make_west
     make_square
     make_diamond
 
@@ -1074,8 +1101,11 @@ sub ps_functions {
     
     my $name = "GraphStyle";
     $ps->add_function( $name, <<END_FUNCTIONS ) unless ($ps->has_function($name));
-	/gstyledict 20 dict def
+	/gstyledict 22 dict def
 	gstyledict begin
+	    /ppdx 0 def
+	    /ppdy 0 def
+	
 	    % _ => _
 	    /line_outer {
 		gpaperdict begin gstyledict begin
@@ -1134,6 +1164,7 @@ sub ps_functions {
 	    /make_plus {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    moveto
 		    /dx ppsize 0.5 mul def
 		    /dy ppsize 0.5 mul def
@@ -1158,6 +1189,7 @@ sub ps_functions {
 	    /make_cross {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    moveto
 		    /dx ppsize 0.7071 mul def
 		    /dy ppsize 0.7071 mul def
@@ -1177,6 +1209,7 @@ sub ps_functions {
 	    /make_dot {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    1 index ppsize 2 div add 1 index moveto
 		    ppsize 2 div 0 360 arc
 		    closepath
@@ -1187,6 +1220,7 @@ sub ps_functions {
 	    /make_circle {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    1 index ppsize 0.6 mul add 1 index moveto
 		    2 copy ppsize 0.6 mul 0 360 arc
 		    1 index ppsize 0.5 mul add 1 index moveto
@@ -1199,6 +1233,7 @@ sub ps_functions {
 	    /make_square {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    ppsize 2 div add exch
 		    ppsize 2 div add exch moveto
 		    0 ppsize neg rlineto
@@ -1212,12 +1247,85 @@ sub ps_functions {
 	    /make_diamond {
 		gpaperdict begin gstyledict begin
 		    newpath
+		    exch ppdx add exch ppdy add
 		    /dx ppsize 0.5 mul def
 		    /dy ppsize 0.75 mul def
 		    dy add moveto
 		    dx neg dy neg rlineto
 		    dx dy neg rlineto
 		    dx dy rlineto
+		    closepath
+		end end
+	    } bind def
+
+	    % x y => _
+	    /make_north {
+		gpaperdict begin gstyledict begin
+		    newpath
+		    exch ppdx add exch ppdy add
+		    /dx ppsize 0.3333 mul def
+		    /dy ppsize 0.5 mul def
+		    exch dx add exch moveto
+		    dx neg dy rlineto
+		    dx neg dy neg rlineto
+		    dx 2 div 0 rlineto
+		    0 dy neg rlineto
+		    dx 0 rlineto
+		    0 dy rlineto
+		    closepath
+		end end
+	    } bind def
+
+	    % x y => _
+	    /make_south {
+		gpaperdict begin gstyledict begin
+		    newpath
+		    exch ppdx add exch ppdy add
+		    /dx ppsize 0.3333 mul def
+		    /dy ppsize 0.5 mul def
+		    exch dx sub exch moveto
+		    dx dy neg rlineto
+		    dx dy rlineto
+		    dx neg 2 div 0 rlineto
+		    0 dy rlineto
+		    dx neg 0 rlineto
+		    0 dy neg rlineto
+		    closepath
+		end end
+	    } bind def
+
+	    % x y => _
+	    /make_east {
+		gpaperdict begin gstyledict begin
+		    newpath
+		    exch ppdx add exch ppdy add
+		    /dx ppsize 0.5 mul def
+		    /dy ppsize 0.3333 mul def
+		    dy add moveto
+		    dx dy neg rlineto
+		    dx neg dy neg rlineto
+		    0 dy 2 div rlineto
+		    dx neg 0 rlineto
+		    0 dy rlineto
+		    dx 0 rlineto
+		    closepath
+		end end
+	    } bind def
+
+	    % x y => _
+	    /make_west {
+		gpaperdict begin gstyledict begin
+		    newpath
+		    exch ppdx add exch ppdy add
+		    /dx ppsize 0.5 mul def
+		    /dy ppsize 0.3333 mul def
+		    dy add moveto
+		    dx neg dy neg rlineto
+		    dx dy neg rlineto
+		    0 dy 2 div rlineto
+		    dx 0 rlineto
+		    0 dy rlineto
+		    dx neg 0 rlineto
 		    closepath
 		end end
 	    } bind def
@@ -1234,17 +1342,17 @@ This class function provides the PostScript dictionary C<gstyledict> and code de
 
 =head1 BUGS
 
-Using the compound colours yellow, mauve and cyan with other colours can have unpredictable results.
-
-Using an auto colour with 'color => 0' fails to produce shades of grey.
+Please report any you find to the author.
 
 =head1 AUTHOR
 
-Chris Willmot, chris@willmot.co.uk
+Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::File>, L<PostScript::Graph::Paper>, L<PostScript::Graph::Key>, L<PostScript::Graph::XY>.
+L<PostScript::File>, L<PostScript::Graph::Paper> and L<PostScript::Graph::Key> for the other modules in this suite.
+
+L<PostScript::Graph::Bar>, L<PostScript::Graph::XY> and L<Finance::Shares::Chart> for modules that use this one.
 
 =cut
 

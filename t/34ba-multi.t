@@ -2,10 +2,9 @@
 use strict;
 use warnings;
 use Test;
-BEGIN { plan tests => 5 };
-use PostScript::File 0.10 qw(check_file);
-use PostScript::Graph::Style 0.05 qw(defaults);
-use PostScript::Graph::Bar 0.02;
+BEGIN { plan tests => 6 };
+use PostScript::File       0.12 qw(check_file);
+use PostScript::Graph::Bar 0.03;
 ok(1);
 
 my $bar = new PostScript::Graph::Bar(
@@ -27,9 +26,10 @@ ok($bar);
 $bar->build_chart("t/multi.csv");
 ok(1);
 
-my $name = "34ba-multi";
-$bar->output( $name, "test-results" );
+my $name = "t/34ba-multi";
+$bar->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 47684);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

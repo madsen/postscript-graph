@@ -3,9 +3,9 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 8 };
-use PostScript::File 0.10 qw(check_file);
+use PostScript::File 0.12 qw(check_file);
 ok(1);
-use PostScript::Graph::Style 0.05;
+use PostScript::Graph::Style 0.07;
 ok(1);
 
 my $gf = new PostScript::File();
@@ -27,10 +27,11 @@ for my $i (1 .. 10) {
 }
 ok(1);
 
-my $name = "21st-simple";
-$gf->output( $name, "test-results" );
+my $name = "t/21st-simple";
+$gf->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 5021);	# the chart looks different?
+warn "Don't worry, the results file should be blank:\n$psfile\n";
 

@@ -1,9 +1,8 @@
 package PostScript::Graph::Paper;
+our $VERSION = 0.10;
 use strict;
 use warnings;
-use PostScript::File 0.1 qw(check_file array_as_string str);
-
-our $VERSION = '0.08';
+use PostScript::File 0.12 qw(check_file array_as_string str);
 
 # bit values for flags
 our $fl_bar    = 1;
@@ -348,7 +347,7 @@ option name.  All values are in PostScript native units (72 = 1 inch).
     Example
 
     $pg = new PostScript::Graph::Paper(
-	    layout => {  right_edge   => 600, 
+	    layout => { right_edge   => 600, 
 			heavy_color  => [0, 0, 0.8],
 			light_color  => 0.6,
 			font         => "Courier",
@@ -580,7 +579,7 @@ sub init_layout {
  sub x_axis_labels_req	    { shift()->{x}{labsreq}; }
  sub x_axis_rotate	    { shift()->{x}{rotate} != 0; }
  sub x_axis_center	    { shift()->{x}{center} != 0; }
- sub x_axis_show_lines	    { shift()->{x}{show} != 0; }
+ sub x_axis_show_lines	    { shift()->{x}{show}; }
  sub y_axis_color	    { color_as_array( shift()->{y}{color} ); }
  sub y_axis_low		    { shift()->{y}{llo}; }
  sub y_axis_high	    { shift()->{y}{lhi}; }
@@ -605,11 +604,11 @@ sub init_layout {
  sub y_axis_labels_req	    { shift()->{y}{labsreq}; }
  sub y_axis_rotate	    { shift()->{y}{rotate} != 0; }
  sub y_axis_center	    { shift()->{y}{center} != 0; }
- sub y_axis_show_lines	    { shift()->{y}{show} != 0; }
+ sub y_axis_show_lines	    { shift()->{y}{show}; }
 
 =head2 Axis Options
 
-The C<axis_> entries below refer document four things: x_axis and y_axis options and x_axis_ and y_axis_ functions
+The C<axis_> entries below refer to four things: x_axis and y_axis options and x_axis_ and y_axis_ functions
 which return those values.  Remove the C<axis_> prefix to get the option name, and prepend C<x_> or C<y_> to get
 the relevant function name.  The options belong within hashes indexed by either C<x_axis> or C<y_axis>.
 
@@ -749,7 +748,7 @@ provided, 0 otherwise)
 This is the smallest allowable gap between axis marks.  Setting this controls how many subdivisions the program
 generates.  It would be wise to set this as a multiple of C<layout_dots_per_inch>.  (Defaults to 3 dots)
 
-=head3 si_shift
+=head3 axis_si_shift
 
 The number of 0's removed at a time when adjusting the axis labels, e.g. 3 for thousands, 2 for hundreds or 0 for
 no adjustment.  (Default: 3)
@@ -798,14 +797,14 @@ sub init_scale_sizes {
     $sc->{offset}  = $bar			  ? $offset		    : 0;
     $sc->{rotate}  = defined($r->{rotate})	  ? ($r->{rotate} != 0)     : $bar;
     $sc->{center}  = defined($r->{center})	  ? ($r->{center} != 0)     : $bar;
-    $sc->{show}    = defined($r->{show_lines})    ? ($r->{show_lines} != 0) : not $bar;
+    $sc->{show}    = defined($r->{show_lines})    ? ($r->{show_lines})      : not $bar;
     $sc->{flags}   = $bar          * $fl_bar;
     $sc->{flags}  |= $sc->{rotate} * $fl_rotate;
     $sc->{flags}  |= $sc->{center} * $fl_center;
     $sc->{flags}  |= $sc->{offset} * $fl_offset;
     $sc->{flags}  |= $sc->{show}   * $fl_show;
-    #print "$axis axis flags=$sc->{flags}, bar=$bar\n";
-    #print "rotate=$sc->{rotate}, center=$sc->{center}, offset=$sc->{offset}, show=$sc->{show}\n";
+    #warn sprintf '%s axis flags=%o, bar=%o, show_lines=%o%s', $axis, $sc->{flags}, $bar, $r->{show_lines} || 0,"\n";
+    #warn "rotate=$sc->{rotate}, center=$sc->{center}, offset=$sc->{offset}, show=$sc->{show}\n";
     
     my $maxlen = 0;
     if (defined $sc->{labels}) {
@@ -818,7 +817,8 @@ sub init_scale_sizes {
     if ($axis eq "x") {
 	$width      = $ch->{right} - 1 - $ch->{keyw} - $ch->{rmargin} - $ch->{yx1};
 	if (defined($sc->{labels}) and ($sc->{flags} & 1 == 1)) {
-	    $height = $sc->{markmax} + (1 + $maxlen * 0.8) * $sc->{fsize};
+	    my $ratio = defined $r->{glyph_ratio} ? $r->{glyph_ratio} : 0.5;
+	    $height = $sc->{markmax} + (1 + $maxlen * $ratio) * $sc->{fsize};
 	} else {
 	    $height = $sc->{markmax} + 2.5 * $sc->{fsize};
 	}
@@ -845,6 +845,7 @@ sub init_scale_options {
     $r = {} unless (defined $r);
     
     # collect options and set defaults
+    undef $r->{label_gap} if defined($r->{label_gap}) and ($r->{label_gap} <= 0);
     $sc->{llo}       = defined($r->{low})           ? $r->{low}           : 0;
     $sc->{lhi}       = defined($r->{high})          ? $r->{high}          : 100;
     $sc->{labelgap}  = defined($r->{label_gap})     ? $r->{label_gap}     : 30;	    # gap between labels
@@ -874,8 +875,8 @@ sub init_scale_options {
 	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{heavycol};
 	    $sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{midcol};
 	} else {
-	    $sc->{heavycol} = defined($r->{heavy_color}) ? str($r->{heavy_color}) : $ch->{bgnd};
-	    $sc->{midcol}   = defined($r->{mid_color})   ? str($r->{mid_color})   : $ch->{bgnd};
+	    $sc->{heavycol} = $ch->{bgnd};
+	    $sc->{midcol}   = $ch->{bgnd};
 	}
 	$sc->{lightcol} = defined($r->{light_color}) ? str($r->{light_color}) : $ch->{bgnd};
     } else {
@@ -887,8 +888,6 @@ sub init_scale_options {
     $sc->{heavyw}   = defined($r->{heavy_width}) ? str($r->{heavy_width}) : $ch->{heavyw};
     $sc->{midw}     = defined($r->{mid_width})   ? $r->{mid_width}        : $ch->{midw};
     $sc->{lightw}   = defined($r->{light_width}) ? $r->{light_width}      : $ch->{lightw};
-
-
 }
 # Internal method, reading scale options
 # Called within new, after initlayout (and init_scale_sizes) but before init_bars or init_scale 
@@ -938,45 +937,59 @@ sub init_scale {
     my $ch = $o->{ch};
     $r = {} unless (defined $r);
 
-    my $sclrange = $sc->{lhi} - $sc->{llo};
-    my $scprange = $sc->{phi} - $sc->{plo};
+    # kludge to better handle -ve scales
+    ($sc->{llo}, $sc->{lhi}) = ($sc->{lhi}, $sc->{llo}) unless $sc->{llo} <= $sc->{lhi};
+    my ($sclrange, $scprange);
+    if ($sc->{llo} < 0 and $sc->{lhi} > 0) {
+	my $negrange = 0 - $sc->{llo};
+	my $posrange = $sc->{lhi} - 0;
+	if ($posrange > $negrange) {
+	    $sclrange = $posrange;
+	    $scprange = $sc->{phi} - 0;
+	} else {
+	    $sclrange = $negrange;
+	    $scprange = 0 - $sc->{plo};
+	}
+    } else {
+	$sclrange = $sc->{lhi} - $sc->{llo};
+	$scprange = $sc->{phi} - $sc->{plo};
+    }
     $sc->{labsreq} = int($scprange/$sc->{labelgap});
     $sc->{labsreq} = defined($r->{labels_req}) ? $r->{labels_req} : $sc->{labsreq}; # allow override
     $sc->{labsreq} = 1 if $sc->{labsreq} < 1;
 
     ## calculate number of major marks to use
-    #print "$axis requested: physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
-    #print "$axis            lrange=$sclrange, prange=$scprange, labelsreq=$sc->{labsreq}, smallest=$sc->{smallest}\n";
     my $lbase10 = $sclrange > 0 ? log($sclrange)/log(10) : 0;
     my $mult = 10 ** int($lbase10);
     my $mant = $sclrange/$mult;
     my @scale  = (0.2, 0.5, 1, 2, 5);
     my @subdiv = (  2,   5, 2, 5, 2);
-    my ($best, $scale, $nmarks, $subdivs) = 99;
+    my ($best, $scale, $subdivs) = (99, 1, 1);
     for (my $i = 0; $i <= $#scale; $i++) {
 	my $smant = $mant*$scale[$i];
 	my $smult = $mult/$scale[$i];
 	my $score = abs($smant - $sc->{labsreq});
 	if ($score < $best) {
 	    $best = $score;
-	    $nmarks = $smant;
 	    $scale = $smult;
 	    $subdivs = $subdiv[$i];
 	}
     }
+    $sclrange = $sc->{lhi} - $sc->{llo};
+    $scprange = $sc->{phi} - $sc->{plo};
+    #warn "$axis requested: physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}\n";
+    #warn "$axis            lrange=$sclrange, prange=$scprange, labelsreq=$sc->{labsreq}, smallest=$sc->{smallest}\n";
     
     ## include outer marks as required
+    my $lhi = int($sc->{lhi}/$scale) * $scale;
     my $llo = int($sc->{llo}/$scale) * $scale;
-    $nmarks++ if ($sc->{llo} >= 0 and $llo < $sc->{llo});
-    $nmarks = ($nmarks > int($nmarks)) ? int($nmarks)+1 : int($nmarks);
-    if ($sc->{llo} < 0) {
-	$llo -= $scale;
-	$nmarks++;
-    }
-    $nmarks = 1 if $nmarks < 1;
+    $llo -= $scale while ($llo > $sc->{llo});
     $sc->{llo} = $llo;
-    $sc->{lhi} = $llo + $nmarks * $scale;
-    #print "$axis            nmarks=$nmarks, scale=$scale, subdivs=$subdivs\n";
+    $lhi += $scale while ($lhi < $sc->{lhi});
+    $lhi = $llo + $scale if $lhi == $llo;
+    $sc->{lhi} = $lhi;
+    my $nmarks = ($lhi - $llo)/$scale;
+    #warn "$axis            nmarks=$nmarks, scale=$scale, llo=$sc->{llo}, lhi=$sc->{lhi}\n";
     
     ## calculate subdivisions of subdivisions ...
     my @factor = ($nmarks);
@@ -1006,7 +1019,7 @@ sub init_scale {
     $sc->{spreads} = [ @spread ];	    # logical size of those (sub)divisions
     $sc->{markgap} = $scprange/$nmarks;	    # physical size between smallest marks
     $sc->{markcen} = $sc->{markgap};
-    #print "$axis factors  = [", join(", ", @factor), "],   markgap=$sc->{markgap}\n";
+    #warn "$axis factors  = [", join(", ", @factor), "],   markgap=$sc->{markgap}, subdivs=$subdivs\n";
 
     ## calculate physical width of all the marks 
     my $marks = 1;
@@ -1030,19 +1043,22 @@ sub init_scale {
 	    last;
 	}
     }
-    #print "$axis spreads  = [", join(", ", @spread), "],   depth=$sc->{ldepth}\n";
+    $sc->{ldepth} = 0 if $sc->{ldepth} < 0;
+    #warn "$axis spreads  = [", join(", ", @spread), "],   depth=$sc->{ldepth}\n";
     $sc->{markmul} = ($#factor >= 0) ? ($sc->{markmax} - $sc->{markmin})/($#factor + 1) : 0;
     
     ## calculate any SI adjustment to labels
-    my $lhi10 = $sc->{lhi} != 0 ? log($sc->{lhi})/log(10) : 0;
+    my $lhi10 = $sc->{lhi} != 0 ? log(abs($sc->{lhi}))/log(10) : 0;
     my $si10 = $sc->{si} ? ($sc->{si} * int($lhi10/$sc->{si})) : 0;
     my $si = 10 ** $si10;
     if ($si != 1) {
-	$sc->{title} = "" unless (defined $sc->{title});
+	$sc->{title} = '' unless (defined $sc->{title});
 	my $groups = $si10/$sc->{si};
-	my $zeroes = '0' x $sc->{si};
-	my $extra  = $groups > 1 ? (' ' . "$zeroes " x ($groups-1)) : "";
-	$sc->{title} .= " (in 1$extra${zeroes}'s)";
+	my $zeroes = '|' x $sc->{si};
+	my $extra  = $groups > 1 ? (' ' . "$zeroes " x ($groups-1)) : '';
+	$extra = " (in 1$extra${zeroes}'s)";
+	$extra =~ tr/|/0/;
+	$sc->{title} .= $extra;
     }
     
     ## now for the actual labels
@@ -1066,15 +1082,15 @@ sub init_scale {
     pop @labels;
     push @labels, $sc->{lhi}/$si;
     $sc->{labels} = [ @labels ];
-    #print "$axis produced : physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}, si=$si\n";
+    #warn "$axis produced : physical $sc->{plo} to $sc->{phi}, logical $sc->{llo} to $sc->{lhi}, si=$si\n";
 
     ## y = mx + c values
     $sc->{l2pm} = ($sc->{phi} - $sc->{plo})/($sc->{lhi} - $sc->{llo});
     $sc->{l2pc} = $sc->{plo} - $sc->{l2pm} * $sc->{llo};
     $sc->{p2lm} = ($sc->{lhi} - $sc->{llo})/($sc->{phi} - $sc->{plo});
     $sc->{p2lc} = $sc->{llo} - $sc->{p2lm} * $sc->{plo};
-    #print "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
-    #print "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
+    #warn "$axis logical  = $sc->{p2lm} * physical + $sc->{p2lc}\n";
+    #warn "$axis physical = $sc->{l2pm} * logical  + $sc->{l2pc}\n\n";
 }
 ## Internal method, initializing one scale
 # expects either ("x", $opts{x_axis}) or ("y", $opts{y_axis})
@@ -1083,7 +1099,7 @@ sub init_scale {
 =head1 OBJECT METHODS
 
 Methods are provided which access the option values given to the constructor.  Those are B<file>, and all B<layout_>,
-B<x_axis_> and B<y_axis_> methods documented under </CONSTRUCTOR>.
+B<x_axis_> and B<y_axis_> methods documented under L</CONSTRUCTOR>.
 
 The most common PostScript::File methods are also provided as members of this class.
 
@@ -1166,7 +1182,7 @@ sub key_area {
     my $o = shift; 
     my $left = $o->{ch}{gx1} + $o->{ch}{rmargin};
     my $right = $o->{ch}{right} - $o->{ch}{spc} - 1;
-    my $top = $o->{ch}{top} - $o->{ch}{spc};
+    my $top = $o->{ch}{gy1};
     my $bottom = $o->{ch}{bottom} + $o->{ch}{spc};
     return ($left, $bottom, $right, $top); 
 }
@@ -2007,7 +2023,7 @@ sub common_code_for_scales {
 			xlabels label get
 			dup length 0 ne {
 			    x fontsize 0.33 mul sub
-			    y xmarkmax sub
+			    y xmarkmax 1.5 mul sub
 			    rotated
 			    pop 0
 			}{
@@ -2203,15 +2219,17 @@ need to be called.  It is only necessary if the layout option C<no_drawing> has 
 
 =head1 BUGS
 
-Very likely.  This is still alpha software and has only been tested in very predictable conditions.
+Very likely.  This is still alpha software and has been tested in fairly limited conditions.
 
 =head1 AUTHOR
 
-Chris Willmot, chris@willmot.co.uk
+Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Key>.
+L<PostScript::File>, L<PostScript::Graph::Style> and L<PostScript::Graph::Key> for the other modules in this suite.
+
+L<PostScript::Graph::Bar>, L<PostScript::Graph::XY> and L<Finance::Shares::Chart> for modules that use this one.
 
 =cut
 

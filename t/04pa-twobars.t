@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 6 };
 use PostScript::File 0.10 qw(check_file);
@@ -34,9 +35,10 @@ my $gp = new PostScript::Graph::Paper(
     );
 ok($gp);
 
-my $name = "04pa-twobars";
-$gp->output( $name, "test-results" );
+my $name = "t/04pa-twobars";
+$gp->output( $name );
 ok(1); # survived so far
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 12015);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

@@ -4,10 +4,10 @@ use warnings;
 
 use Test;
 BEGIN { plan tests => 6 };
-use PostScript::File 0.10 qw(check_file);
-use PostScript::Graph::Bar 0.02;
+use PostScript::File 0.12 qw(check_file);
+use PostScript::Graph::Bar 0.03;
 ok(1);
-use PostScript::Graph::Style 0.05;
+use PostScript::Graph::Style 0.07;
 ok(1);
 
 my $bar = new PostScript::Graph::Bar(
@@ -16,9 +16,11 @@ my $bar = new PostScript::Graph::Bar(
 	    debug => 2,
 	    errors => 1,
 	},
+	x_axis => {
+	    rotate => 0,
+	},
 	style => {
-	    auto => [qw(gray width)],
-	    use_color => 0,
+	    auto => [qw(green blue red width)],
 	    bar => {},
 	},
 );
@@ -26,10 +28,10 @@ my $bar = new PostScript::Graph::Bar(
 $bar->build_chart("t/const.csv");
 ok(1);
 
-my $name = "24st-colour";
-$bar->output( $name, "test-results" );
+my $name = "t/24st-colour";
+$bar->output( $name );
 ok(1);
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
-
+my $psfile = check_file( "$name.ps" );
+ok($psfile);
+ok(-s $psfile == 60003);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 64 };
-use PostScript::File 0.1 qw(check_file);
-use PostScript::Graph::Paper 0.08;
+use PostScript::File 0.12 qw(check_file);
+use PostScript::Graph::Paper 0.10;
 ok(1); # module found
 
 sub array_cmp ($$) {
@@ -36,12 +36,9 @@ my $gp = new PostScript::Graph::Paper(
 	);
 ok($gp); # object created
 
-my $name = "pa03barchart";
-$gp->output( $name, "test-results" );
+my $name = "t/03pa-barchart";
+$gp->output( $name );
 ok(1); # survived so far
-my $file = check_file( "$name.ps", "test-results" );
-ok($file);
-ok(-e $file);
 ok($gp->layout_left_edge(), 37);
 ok($gp->layout_bottom_edge(), 37);
 ok($gp->layout_right_edge(), 250);
@@ -70,7 +67,7 @@ ok($gp->layout_heading_font_color(), 0);
 ok($gp->x_axis_low(), 0);
 ok($gp->x_axis_high(), 3);
 ok($gp->x_axis_width(), 67);
-ok($gp->x_axis_height(), 98);
+ok($gp->x_axis_height(), 68);
 ok($gp->x_axis_label_gap(), 30);
 ok($gp->x_axis_smallest(), 0.72);
 ok($gp->x_axis_title(), '');
@@ -83,8 +80,8 @@ ok($gp->x_axis_labels_req(), 3);
 ok($gp->x_axis_rotate(), '1');
 ok($gp->x_axis_center(), '1');
 ok($gp->x_axis_show_lines(), '');
-ok($gp->y_axis_low(), 100);
-ok($gp->y_axis_high(), 500);
+ok($gp->y_axis_low(), 120);
+ok($gp->y_axis_high(), 460);
 ok($gp->y_axis_width(), 30);
 ok($gp->y_axis_height(), 463);
 ok($gp->y_axis_label_gap(), 30);
@@ -95,9 +92,13 @@ ok($gp->y_axis_font_color(), 0);
 ok($gp->y_axis_font_size(), 10);
 ok($gp->y_axis_mark_min(), 0.5);
 ok($gp->y_axis_mark_max(), 8);
-ok($gp->y_axis_labels_req(), 11);
+ok($gp->y_axis_labels_req(), 12);
 ok($gp->y_axis_rotate(), '');
 ok($gp->y_axis_center(), '');
 ok($gp->y_axis_show_lines(), '1');
-ok(array_cmp([$gp->graph_area()], [67, 135, 134, 468]));
-ok(array_cmp([$gp->key_area()],   [149, 37, 249, 500]));
+ok(array_cmp([$gp->graph_area()], [67, 105, 134, 468]));
+ok(array_cmp([$gp->key_area()],   [149, 37, 249, 468]));
+my $psfile = check_file( "$name.ps" );
+ok(-e $psfile);
+ok(-s $psfile == 9332);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";

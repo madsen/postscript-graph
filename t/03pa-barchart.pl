@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use PostScript::Graph::Paper 0.08;
+use PostScript::Graph::Paper 0.10;
 
 sub array_cmp ($$) {
     my ($a, $b) = @_;
@@ -33,14 +33,14 @@ my $gp = new PostScript::Graph::Paper(
 	    },
 	);
 
-open(OUTFILE, ">", "03pa-barchart.t") or die "Unable to output file: $!\nStopped";
+open(OUTFILE, ">", "t/03pa-barchart.t") or die "Unable to output file: $!\nStopped";
 select OUTFILE;
 print <<'END_PROLOG';
 #!/usr/bin/perl
 use Test;
 BEGIN { plan tests => 64 };
-use PostScript::File 0.1 qw(check_file);
-use PostScript::Graph::Paper 0.08;
+use PostScript::File 0.12 qw(check_file);
+use PostScript::Graph::Paper 0.10;
 ok(1); # module found
 
 sub array_cmp ($$) {
@@ -74,13 +74,9 @@ my $gp = new PostScript::Graph::Paper(
 	);
 ok($gp); # object created
 
-my $name = "pa03barchart";
-$gp->output( $name, "test-results" );
+my $name = "t/03pa-barchart";
+$gp->output( $name );
 ok(1); # survived so far
-my $file = check_file( "$name.ps", "test-results" );
-print STDERR "\nUse 'gv' or similar to inspect results file:\n$file\n";
-ok($file);
-ok(-e $file);
 END_PROLOG
 
 print "ok(\$gp->layout_left_edge(), ${\($gp->layout_left_edge())});\n";
@@ -148,6 +144,13 @@ print "ok(\$gp->y_axis_show_lines(), \'${\($gp->y_axis_show_lines())}\');\n";
 
 print "ok(array_cmp([\$gp->graph_area()], [" . join(", ", $gp->graph_area()) . "]));\n";
 print "ok(array_cmp([\$gp->key_area()],   [" . join(", ", $gp->key_area()) . "]));\n";
+
+print <<'END';
+my $psfile = check_file( "$name.ps" );
+ok(-e $psfile);
+ok(-s $psfile == 9332);	# the chart looks different?
+warn "Use ghostview or similar to inspect results file:\n$psfile\n";
+END
 
 select STDOUT;
 close OUTFILE;

@@ -1,13 +1,12 @@
 package PostScript::Graph::Bar;
+our $VERSION = 0.03;
 use strict;
 use warnings;
 use Text::CSV_XS;
-use PostScript::File 0.1 qw(check_file str);
-use PostScript::Graph::Style 0.05;
-use PostScript::Graph::Paper 0.08;
-use PostScript::Graph::Key 0.04;
-
-our $VERSION = '0.02';
+use PostScript::File	     0.12 qw(check_file str);
+use PostScript::Graph::Key   0.10;
+use PostScript::Graph::Paper 0.10;
+use PostScript::Graph::Style 0.07;
 
 =head1 NAME
 
@@ -459,27 +458,27 @@ sub series_from_array {
 # $o->{data}   = { xlabel0 => [ ys0, ys1, ... ], 
 #		   xlabel1 => [ ys0, ys1, ... ], }
 
-=head2 series_from_array(data [,style|labels|new_series]...)
+=head2 series_from_array( data [, style | labels | new_series ]... )
 
-=over 4
+=over 8
 
-=item C<data>
+=item data
 
 An array ref pointing to a list of array refs.  Each sub-array hold the data for one CSV row - a list comprising
 one label followed by one or more numbers.
 
-=item C<style>
+=item style
 
 An optional hash ref.  This should contain settings for the PostScript::Graph::Style objects which will be
 associated with each column of data.  If present, the whole hash ref overrides any 'style' hash ref given to
 B<new>.
 
-=item C<labels>
+=item labels
 
 An optional array ref.  This list of series names will appear in the Key, replacing the column headings, if given, as
 the first data line.
 
-=item C<new_series>
+=item new_series
 
 A flag indicating whether the columns constitute new series to be added.  Set to 0 to force merging of data with
 existing series of the same name.  (Default: 1)
@@ -522,7 +521,7 @@ sub series_from_file {
     $o->series_from_array( \@data, @rest );
 }
 
-=head2 series_from_file(file [,style|labels|new_series]...)
+=head2 series_from_file( file [, style | labels | new_series ]... )
 
 Read in the named CSV file then pass it and any other arguments to B<series_from_array>.
 
@@ -650,10 +649,10 @@ END_BAR
 	    unless ($keydone) {
 		my $colour = str($style->bar_inner_color());
 		$o->{gk}->add_key_item( $series->[1], <<END_KEY_ITEM ) if ($o->{key});
-		    /kix0 kix0 bowidth 2 div add def
-		    /kiy0 kiy0 bowidth 2 div add def
-		    /kix1 kix1 bowidth 2 div sub def
-		    /kiy1 kiy1 bowidth 2 div sub def
+		    % /kix0 kix0 bowidth 2 div add def
+		    % /kiy0 kiy0 bowidth 2 div add def
+		    % /kix1 kix1 bowidth 2 div sub def
+		    % /kiy1 kiy1 bowidth 2 div sub def
 		    kix0 kiy0 kix1 kiy1 bocolor bowidth drawbox
 		    kix0 kiy0 kix1 kiy1 bicolor bicolor biwidth fillbox
 END_KEY_ITEM
@@ -683,7 +682,7 @@ END_KEY_ITEM
 END_FINISHING
 }
 
-=head2 build_chart([data|file [,style|labels|new_series]...])
+=head2 build_chart([ data | file [, style | labels | new_series ]... ])
 
 The optional arguments are passed direct to B<series_from_array> or B<series_from_file> depending on whether the
 first is an array ref.  This just provides a convenient way of providing a single data set.
@@ -780,9 +779,8 @@ Add postscript code to the underlying PostScript::File object.  See L<PostScript
 
 =head1 BUGS
 
-Very likely, as it has only been tested in predictable conditions.  This is alpha software, so the interface is
-subject to change.  In particular, I suspect I haven't got the labels/series orientation right, although I would
-fix this by merely adding an invert() function.
+When reading from a CSV file, the first line is only recognized as a label line if both the first and SECOND
+entries are unable to be read as a number.  Putting quotes around them no longer works.
 
 =head1 AUTHOR
 
@@ -791,7 +789,7 @@ Chris Willmot, chris@willmot.co.uk
 =head1 SEE ALSO
 
 L<PostScript::File>, L<PostScript::Graph::Style>,  L<PostScript::Graph::Key>, L<PostScript::Graph::Paper>,
-L<PostScript::Graph::XY>, L<PostScript::Graph::Stock>.
+L<PostScript::Graph::XY>, L<Finance::Shares::Chart>.
 
 =cut
 
