@@ -1,8 +1,7 @@
 package PostScript::Graph::Style;
 use strict;
 use warnings;
-
-### Introduction #############################################################
+use PostScript::File qw(str);
 
 =head1 NAME
 
@@ -14,11 +13,11 @@ PostScript::Graph::Style - style settings for postscript objects
 
 Each time a new object is created the default style will be slightly different.
 
-    use PostScript::Graph::File;
+    use PostScript::File;
     use PostScript::Graph::Style;
 
-    my $file = new PostScript::Graph::File();
-    my $seq = new StyleSequence();
+    my $file = new PostScript::File();
+    my $seq = new PostScript::Graph::Sequence();
     
     while (...) {
 	my $style = new PostScript::Graph::Style(
@@ -50,10 +49,10 @@ Each time a new object is created the default style will be slightly different.
 
 It is possible to control how each new object varies.
 
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
     $seq->setup( "red", [0, 1, 0.2, 0.8, 0.4, 0.6] );
 	    
-    my $file = new PostScript::Graph::File();
+    my $file = new PostScript::File();
     while (...) {
 	my $style = new PostScript::Graph::Style(
 	    sequence => $seq,
@@ -140,7 +139,7 @@ something useful, see
 
 Style settings are provided for objects placed on a graph.  Lines on the same graph need to be distinguishable
 from each other.  Each line would have a PostScript::Graph::Style object holding its settings.  Passing each line
-a reference to the same StyleSequence object makes the styles vary.  This can either use the defaults of be
+a reference to the same PostScript::Graph::Sequence object makes the styles vary.  This can either use the defaults of be
 controlled to every last detail.
 
 Settings are provided for three types of object.  A B<line> is any unfilled path, a B<bar> is any filled path
@@ -151,7 +150,7 @@ They all have outer and inner components.  The inner component provides the main
 builtin shapes is provided.  By default, repeated calls to B<new> return styles that differ from one another
 although like everything else this can be under detailed user control if required.
 
-The settings are only useful once they have been written out to a PostScript::Graph::File object using B<write>.  The
+The settings are only useful once they have been written out to a PostScript::File object using B<write>.  The
 following functions return values set in the constructor.  See L</"new"> for more details.
 
     bar_outer_color()
@@ -180,9 +179,9 @@ following functions return values set in the constructor.  See L</"new"> for mor
     
 =cut
 
-### StyleSequence ############################################################
+### PostScript::Graph::Sequence
 
-package StyleSequence;
+package PostScript::Graph::Sequence;
 
 # Largely for testing
 our $sequence_id = 1;
@@ -227,22 +226,18 @@ one.  These dynamic defaults provide around 3600 variations which should be suit
 themselves can be replaced if desired.  Permutations of these are then generated on demand and the permutation order
 is also under user control.
 
-=head3 StyleSequence new
+=head3 PostScript::Graph::Sequence new
 
 Whenever a new PostScript::Graph::Style object is created, it uses certain defaults.  These defaults can be made to
 vary if a sequence is declared as one of the options.  This should be the value returned from:
 
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
 
 =cut
 
 sub create {
-    my ($o, $opts, $this_style) = @_;
+    my ($o, $opts) = @_;
     my $list = (defined($opts) and ref($opts) eq "HASH") ? $opts->{auto} : [];
-    if (defined $this_style) {
-	$o->{pstyle} = $o->{style};
-	$o->{style}  = $this_style;
-    }
     return defaults() if ($o->{none});
 
     if (defined $opts->{auto}) {
@@ -403,15 +398,15 @@ sub setup {
 
 =head3 setup( key, array )
 
-The defaults provided by the StyleSequence are chosen from arrays which may be redefined using this method.  Note
-that it is a B<StyleSequence> method and B<NOT> a PostScript::Graph::Style method, and should typically be called
-directly after the StyleSequence object is created.
+The defaults provided by the PostScript::Graph::Sequence are chosen from arrays which may be redefined using this method.  Note
+that it is a B<PostScript::Graph::Sequence> method and B<NOT> a PostScript::Graph::Style method, and should typically be called
+directly after the PostScript::Graph::Sequence object is created.
 
 Example
     
     use PostScript::Graph::Style;
     
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
     $seq->setup( "red", [0, 0.5, 1] );
 
 C<array> is always an array reference as in the example.  C<key> may be one of the following.
@@ -427,7 +422,7 @@ possibly C<gray>.
 See L</"inner_dashes"> for details on the arrays required for dashes.  Suitable values for shape can be one of
 these entries, taken from the default array.
 
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
     $seq->setup( "shape",
 	[ qw(cross plus dot circle square diamond) ]);
 
@@ -435,7 +430,7 @@ these entries, taken from the default array.
 L</"color">.  If the gray array is filled with decimals between 0 and 1 (inclusive), the result is varying shades
 of grey.  However, it is also possible to use arrays of red-green-blue colours:
     
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
     $seq->setup( "gray",
 	[ [ 0, 0, 0 ],	    # white
 	  [ 0, 0, 1 ],	    # blue
@@ -458,7 +453,7 @@ line, point and bar are outlined in the complementary colour to the background, 
 More than one variable can be set of course.  For example the following would ensure lines with 15 shades of
 red-orange-yellow, if 'auto' was set to some combination of red, blue and green.
 
-    my $seq = new StyleSequence();
+    my $seq = new PostScript::Graph::Sequence();
     $seq->setup("red", [ 0.2, 1, 0.4, 0.8, 0.6 ]);
     $seq->setup("green", [ 0, 0.8, 0.4 ]);
     $seq->setup("blue", [ 0 ]);
@@ -470,10 +465,14 @@ sub new_style_id {
     $o->{styleid}++;
     return $o->{styleid};
 }
-# Used by PostScript::Graph::Style 
 
 sub previous_style {
-    return shift()->{pstyle};
+    return (shift()->{pstyle} || 0);
+}
+
+sub register_style {
+    my ($o, $style) = @_;
+    $o->{pstyle} = $style;
 }
 
 sub style_id {
@@ -505,13 +504,8 @@ sub bar {
 }
 # Used by PostScript::Graph::Style 
 
-sub prev_style {
-    return shift()->{pstyle};
-}
-# Used by PostScript::Graph::Style 
-
 sub default {
-    our $default_seq = new StyleSequence() unless (defined $default_seq);
+    our $default_seq = new PostScript::Graph::Sequence() unless (defined $default_seq);
     return $default_seq;
 }
 
@@ -522,17 +516,16 @@ our $default_seq;
 
 =head3 default()
 
-Return a fallback StyleSequence.  Note that this is possibly called by many, unrelated objects, so the sequences
+Return a fallback PostScript::Graph::Sequence.  Note that this is possibly called by many, unrelated objects, so the sequences
 generated may not be predictable or even useful.
 
 =cut
 
-### PostScript::Graph::Style ###################################################
+### PostScript::Graph::Style
 
 package PostScript::Graph::Style;
-use PostScript::Graph::File qw(str);
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 CONSTRUCTOR
 
@@ -555,24 +548,24 @@ sub new {
     my $o = {};
     bless( $o, $class );
 
-    # collect the defaults
+    ## collect the defaults
     my ($d, $seq);
     $o->{none}    = (defined($opt->{auto}) and ref($opt->{auto}) ne "ARRAY");
     if ($o->{none}) {
-	$d        = StyleSequence::defaults();
+	$d        = PostScript::Graph::Sequence::defaults();
     } else {
-	$seq      = defined($opt->{sequence})     ? $opt->{sequence}     : StyleSequence::default();
-	$d        = $seq->create($opt, $o);
+	$seq      = defined($opt->{sequence})     ? $opt->{sequence}     : PostScript::Graph::Sequence::default();
+	$d        = $seq->create($opt);
 	$o->{seq} = $seq;
-	$o->{id}      = $seq->new_style_id();
+	$o->{id}  = $seq->new_style_id();
     }
-    $o->{pstyle}  = $d->{pstyle};   # previous style or undef; 0 if 'none'
     
     $o->{rel}     = defined($opt->{changes_only}) ? $opt->{changes_only} : 1;	# 'don't set everything'
     $o->{same}    = defined($opt->{same})         ? $opt->{same}         : 0;	# 'don't complement bgnd'
-    $o->{color}   = defined($opt->{color})        ? $opt->{color}        : 1;	# 'not monochrome'
+    $o->{color}   = defined($opt->{use_color})    ? $opt->{use_color}    : 1;	# 'not monochrome'
     my $color     = $o->{color} ? [ $d->{red}, $d->{green}, $d->{blue} ] : $d->{gray};
     
+    ## line options
     my $li = $opt->{line};
     if ($li) {
 	my $lwidth    = defined($li->{width})         ? $li->{width}         : $d->{width};
@@ -587,7 +580,8 @@ sub new {
 	$o->{listyle} = defined($li->{inner_dashes})  ? $li->{inner_dashes}  : $dashes;
 	$o->{use_line} = 1;
     }
-	
+    
+    ## bar options
     my $bl = $opt->{bar};
     if ($bl) {
 	my $bwidth    = defined($bl->{width})         ? $bl->{width}         : $d->{width};
@@ -600,6 +594,7 @@ sub new {
 	$o->{use_bar} = 1;
     }
 
+    ## point options
     my $pp = $opt->{point};
     if ($pp) {
 	my $pwidth     = defined($pp->{width})         ? $pp->{width}         : $d->{width};
@@ -659,7 +654,7 @@ are assumed.
 Set this to 0 if you need every style parameter written out to postscript.  If this is 1, only the changes from
 the previous style settings are added to the file.  (Default: 1)
 
-=head3 color
+=head3 use_color
 
 Set this to 0 to use shades of grey for monochrome printers.
 
@@ -792,8 +787,304 @@ Set the inner line width.  The outer width is also set to twice this value.
 
 =cut
 
-sub ps_functions {
+sub number_value {
+    my ($o, $name) = @_;
+    my $res = "/$name ". $o->{$name} . " def\n";
+    my $prev = $o->{seq} && $o->{seq}->previous_style();
+    if ($o->{rel} and $prev) {
+	my $new = $o->{$name} || '';
+	my $old = $prev->{$name} || '';
+	$res = '' if ($new eq $old);
+    }
+    return $res;
+}
+# Internal method
+# expects variable name and hash key
+# string to add to postscript code
+
+sub shape_value {
+    my ($o, $name) = @_;
+    my $res = "/$name /make_$o->{$name} cvx def\n";
+    my $prev = $o->{seq} && $o->{seq}->previous_style();
+    if ($o->{rel} and $prev) {
+	my $new = $o->{$name} || '';
+	my $old = $prev->{$name} || '';
+	$res = '' if ($new eq $old);
+    }
+    return $res;
+}
+
+sub array_value {
+    my ($o, $name) = @_;
+    my $res = "/$name ". str($o->{$name}) . " def\n";
+    my $prev = $o->{seq} && $o->{seq}->previous_style();
+    if ($o->{rel} and $prev) {
+	my $new = str($o->{$name}) || '';
+	my $old = str($prev->{$name}) || '';
+	$res = '' if ($new eq $old);
+    }
+    return $res;
+}
+
+=head1 OBJECT METHODS
+
+=cut
+
+sub write {
     my ($o, $ps) = @_;
+    $o->ps_functions($ps);	    # only active on first call
+  
+    #my $prev = $o->{seq}->previous_style() if ($o->{seq});
+    #my $psid = $prev ? $prev->id() : 'undef';
+    #print "write ${\($o->id())}, pstyle=$psid\n";
+    
+    my $settings = "gstyledict begin\n";
+    $settings .= $o->array_value ("locolor") if ($o->{use_line});
+    $settings .= $o->number_value("lowidth") if ($o->{use_line});
+    $settings .= $o->array_value ("lostyle") if ($o->{use_line});
+    $settings .= $o->array_value ("licolor") if ($o->{use_line});
+    $settings .= $o->number_value("liwidth") if ($o->{use_line});
+    $settings .= $o->array_value ("listyle") if ($o->{use_line});
+    $settings .= $o->shape_value ("ppshape") if ($o->{use_point});
+    $settings .= $o->number_value("ppsize")  if ($o->{use_point});
+    $settings .= $o->number_value("powidth") if ($o->{use_point});
+    $settings .= $o->array_value ("pocolor") if ($o->{use_point});
+    $settings .= $o->array_value ("picolor") if ($o->{use_point});
+    $settings .= $o->number_value("piwidth") if ($o->{use_point});
+    $settings .= $o->array_value ("bocolor") if ($o->{use_bar});
+    $settings .= $o->number_value("bowidth") if ($o->{use_bar});
+    $settings .= $o->array_value ("bicolor") if ($o->{use_bar});
+    $settings .= $o->number_value("biwidth") if ($o->{use_bar});
+    $settings .= "end\n";
+
+    $o->{seq}->register_style($o) if ($o->{seq});
+    $ps->add_to_page( $settings );
+}   
+
+=head3 write( ps )
+
+Write style settings to the PostScript::File object.  This is a convenient way of setting all the postscript
+variables at the same time as it calls each of the line, point and bar variants below.
+
+All of the postscript variables are set if the constructor option C<changes_only> was
+set to 0.  Otherwise, only those values that are different from the previous style are written out.
+
+See L</POSTSCRIPT CODE> for a list of the variables set.
+
+=cut
+
+sub background {
+    my ($o, $col, $same) = @_;
+    $same = $o->{same} unless (defined $same);
+
+    unless ($same) {
+	if (ref($col) eq "ARRAY") {
+	    $col->[0] = 1 - $col->[0];
+	    $col->[1] = 1 - $col->[1];
+	    $col->[2] = 1 - $col->[2];
+	} else {
+	    $col = 1 - $col;
+	}
+    }
+    $o->{locolor} = $col if ($o->{use_line}  and $o->{locolor} < 0);
+    $o->{pocolor} = $col if ($o->{use_point} and $o->{pocolor} < 0);
+    $o->{bocolor} = $col if ($o->{use_bar}   and $o->{bocolor} < 0);
+}
+
+=head3 background( grey | arrayref [, same] )
+
+The default outer colour setting (-1) is interpreted as 'use complement to graphpaper background'.  Of course, it
+is not possible to bind that until the graphpaper object exists.  Calling this function sets all outer colour
+values to be a complement of the colour given, unless C<same> is set to non-zero.  If not given, C<same> takes on
+the value given to the constuctor or 0 by default.
+
+=cut
+
+sub sequence { 
+    shift()->{seq}; 
+}
+
+sub id {
+    my $o = shift;
+    my $seqid = $o->{seq} ? $o->{seq}->id() : "<none>";
+    my $ownid = $o->{id} ? $o->{id} : "<none>";
+    return "$seqid.$ownid";
+}
+
+sub same { 
+    shift()->{same}; 
+}
+
+sub color {
+    shift()->{color};
+}
+
+sub line_outer_color { 
+    shift()->{locolor}; 
+}
+
+sub line_outer_width {
+    shift()->{lowidth};
+}
+
+sub line_outer_dashes {
+    shift()->{lostyle};
+}
+
+sub line_inner_color {
+    shift()->{licolor};
+}
+
+sub line_inner_width {
+    shift()->{liwidth};
+}
+
+sub line_inner_dashes { 
+    shift()->{listyle}; 
+}
+
+sub bar_outer_color {
+    shift()->{bocolor};
+}
+
+sub bar_outer_width {
+    shift()->{bowidth};
+}
+
+sub bar_inner_color {
+    shift()->{bicolor};
+}
+
+sub bar_inner_width {
+    shift()->{biwidth};
+}
+
+sub point_size {
+    shift()->{ppsize}; 
+}
+
+sub point_shape {
+    shift()->{ppshape};
+}
+
+sub point_outer_color {
+    shift()->{pocolor};
+}
+
+sub point_outer_width {
+    shift()->{powidth};
+}
+
+sub point_inner_color {
+    shift()->{picolor};
+}
+sub point_inner_width {
+    shift()->{piwidth};
+}
+
+sub use_line {
+    return shift()->{use_line};
+}
+
+=head2 use_line
+
+Return 1 if line settings are used.
+
+=cut
+
+sub use_point {
+    return shift()->{use_point};
+}
+
+=head2 use_point
+
+Return 1 if point settings are used.
+
+=cut
+
+sub use_bar {
+    return shift()->{use_bar};
+}
+
+=head2 use_bar
+
+Return 1 if bar settings are used.
+
+=cut
+
+=head1 POSTSCRIPT CODE
+
+=head2 PostScript variables
+
+These are set within the 'gstyledict' dictionary.  All C<...color> variables are either a decimal or an array
+holding red, green and blue values.  They are best passed to L<PostScript::Graph::Paper/gpapercolor>.
+
+    PostScript	Perl method
+    ==========	===========
+    locolor	line_outer_color
+    lowidth	line_outer_width
+    lostyle	line_outer_dashes
+    licolor	line_inner_color
+    liwidth	line_inner_width
+    listyle	line_inner_dashes
+ 
+    ppshape	point_shape
+    ppsize	point_size
+    pocolor	point_outer_color
+    powidth	point_outer_width
+    picolor	point_inner_color
+    piwidth	point_inner_width
+    
+    bocolor	bar_outer_color
+    bowidth	bar_outer_width
+    bicolor	bar_inner_color
+    biwidth	bar_inner_width
+
+=head2 Setting Styles
+
+Once B<write> has been called to update the postscript variables, the graphic environment must be set to use them.
+The GraphStyle resource provides a number of functions for this.
+
+=head3 line_inner
+
+Sets the colour, width and dash pattern for a line.
+
+=head3 line_outer
+
+Sets the colour, width and dash pattern for a line's edge.
+
+=head3 point_inner
+
+Sets the colour and width for a point.
+
+=head3 point_outer
+
+Sets the colour and width for a point's edge.
+
+=head3 bar_inner
+
+Sets the colour and width for a bar.
+
+=head3 bar_outer
+
+Sets the colour and width for a bar's edge.
+
+=head2 Drawing Functions
+
+The functions which draw the shapes all remove 'x y' from the stack.  They use a variable 'ppsize' which should be
+the total width of the shape.
+
+    make_plus
+    make_cross
+    make_dot
+    make_circle
+    make_square
+    make_diamond
+
+=cut
+
+sub ps_functions {
+    my ($class, $ps) = @_;
     
     my $name = "GraphStyle";
     $ps->add_function( $name, <<END_FUNCTIONS ) unless ($ps->has_function($name));
@@ -948,272 +1239,13 @@ sub ps_functions {
 	end
 END_FUNCTIONS
 }
-# Add style functions into the prolog of the PostScript::Graph::File object, C<ps>.  
-# Nothing works unless this is given.
-# The dictionary C<gpaperdict> must be present.
-# Uses gstyledict.
 
-sub number_value {
-    my ($o, $name) = @_;
-    my $res = "/$name ". $o->{$name} . " def\n";
-    if ($o->{rel} and $o->{pstyle}) {
-	my $new = str($o->{$name});
-	my $old = $o->{pstyle} ? str($o->{pstyle}->{$name}) : "";
-	$res = "" if ($new eq $old);
-    }
-    return $res;
-}
-# Internal method
-# expects variable name and hash key
-# string to add to postscript code
+=head2 ps_functions
 
-sub shape_value {
-    my ($o, $name) = @_;
-    my $res = "/$name /make_$o->{$name} cvx def\n";
-    if ($o->{rel} and $o->{pstyle}) {
-	my $new = str($o->{$name});
-	my $old = $o->{pstyle} ? str($o->{pstyle}->{$name}) : "";
-	$res = "" if ($new eq $old);
-    }
-    return $res;
-}
-
-sub array_value {
-    my ($o, $name) = @_;
-    my $res = "/$name ". str($o->{$name}) . " def\n";
-    if ($o->{rel} and $o->{pstyle}) {
-	my $new = str($o->{$name});
-	my $old = $o->{pstyle} ? str($o->{pstyle}->{$name}) : "";
-	$res = "" if ($new eq $old);
-    }
-    return $res;
-}
-
-=head1 OBJECT METHODS
+This class function provides the PostScript dictionary C<gstyledict> and code defining the specialist Style functions.
 
 =cut
 
-sub write {
-    my ($o, $ps) = @_;
-    $o->ps_functions($ps);	    # only active on first call
-  
-    #my $psid = $o->{pstyle} ? $o->{pstyle}->id() : "undef";
-    #print "write ${\($o->id())}, pstyle=$psid\n";
-    
-    my $settings = "gstyledict begin\n";
-    $settings .= $o->array_value ("locolor") if ($o->{use_line});
-    $settings .= $o->number_value("lowidth") if ($o->{use_line});
-    $settings .= $o->array_value ("lostyle") if ($o->{use_line});
-    $settings .= $o->array_value ("licolor") if ($o->{use_line});
-    $settings .= $o->number_value("liwidth") if ($o->{use_line});
-    $settings .= $o->array_value ("listyle") if ($o->{use_line});
-    $settings .= $o->shape_value ("ppshape") if ($o->{use_point});
-    $settings .= $o->number_value("ppsize")  if ($o->{use_point});
-    $settings .= $o->number_value("powidth") if ($o->{use_point});
-    $settings .= $o->array_value ("pocolor") if ($o->{use_point});
-    $settings .= $o->array_value ("picolor") if ($o->{use_point});
-    $settings .= $o->number_value("piwidth") if ($o->{use_point});
-    $settings .= $o->array_value ("bocolor") if ($o->{use_bar});
-    $settings .= $o->number_value("bowidth") if ($o->{use_bar});
-    $settings .= $o->array_value ("bicolor") if ($o->{use_bar});
-    $settings .= $o->number_value("biwidth") if ($o->{use_bar});
-    $settings .= "end\n";
-
-    $ps->add_to_page( $settings );
-}   
-
-=head3 write( ps )
-
-Write style settings to the PostScript::Graph::File object.  This is a convenient way of setting all the postscript
-variables at the same time as it calls each of the line, point and bar variants below.
-
-All of the postscript variables are set if the constructor option C<changes_only> was
-set to 0.  Otherwise, only those values that are different from the previous style are written out.
-
-See L</POSTSCRIPT CODE> for a list of the variables set.
-
-=cut
-
-sub background {
-    my ($o, $col, $same) = @_;
-    $same = $o->{same} unless (defined $same);
-
-    unless ($same) {
-	if (ref($col) eq "ARRAY") {
-	    $col->[0] = 1 - $col->[0];
-	    $col->[1] = 1 - $col->[1];
-	    $col->[2] = 1 - $col->[2];
-	} else {
-	    $col = 1 - $col;
-	}
-    }
-    $o->{locolor} = $col if ($o->{use_line}  and $o->{locolor} < 0);
-    $o->{pocolor} = $col if ($o->{use_point} and $o->{pocolor} < 0);
-    $o->{bocolor} = $col if ($o->{use_bar}   and $o->{bocolor} < 0);
-}
-
-=head3 background( grey | arrayref [, same] )
-
-The default outer colour setting (-1) is interpreted as 'use complement to graphpaper background'.  Of course, it
-is not possible to bind that until the graphpaper object exists.  Calling this function sets all outer colour
-values to be a complement of the colour given, unless C<same> is set to non-zero.  If not given, C<same> takes on
-the value given to the constuctor or 0 by default.
-
-=cut
-
-sub sequence { 
-    shift()->{seq}; 
-}
-
-sub id {
-    my $o = shift;
-    my $seqid = $o->{seq}->id();
-    return "$seqid.$o->{id}";
-}
-
-sub same { 
-    shift()->{same}; 
-}
-
-sub color {
-    shift()->{color};
-}
-
-sub line_outer_color { 
-    shift()->{locolor}; 
-}
-
-sub line_outer_width {
-    shift()->{lowidth};
-}
-
-sub line_outer_dashes {
-    shift()->{lostyle};
-}
-
-sub line_inner_color {
-    shift()->{licolor};
-}
-
-sub line_inner_width {
-    shift()->{liwidth};
-}
-
-sub line_inner_dashes { 
-    shift()->{listyle}; 
-}
-
-sub bar_outer_color {
-    shift()->{bocolor};
-}
-
-sub bar_outer_width {
-    shift()->{bowidth};
-}
-
-sub bar_inner_color {
-    shift()->{bicolor};
-}
-
-sub bar_inner_width {
-    shift()->{biwidth};
-}
-
-sub point_size {
-    shift()->{ppsize}; 
-}
-
-sub point_shape {
-    shift()->{ppshape};
-}
-
-sub point_outer_color {
-    shift()->{pocolor};
-}
-
-sub point_outer_width {
-    shift()->{powidth};
-}
-
-sub point_inner_color {
-    shift()->{picolor};
-}
-sub point_inner_width {
-    shift()->{piwidth};
-}
-
-### PostScript Code ##########################################################
-
-=head1 POSTSCRIPT CODE
-
-=head2 PostScript variables
-
-These are set within the 'gstyledict' dictionary.  All C<...color> variables are either a decimal or an array
-holding red, green and blue values.  They are best passed to L<PostScript::Graph::Paper/gpapercolor>.
-
-    PostScript	Perl method
-    ##########	###########
-    locolor	line_outer_color
-    lowidth	line_outer_width
-    lostyle	line_outer_dashes
-    licolor	line_inner_color
-    liwidth	line_inner_width
-    listyle	line_inner_dashes
- 
-    ppshape	point_shape
-    ppsize	point_size
-    pocolor	point_outer_color
-    powidth	point_outer_width
-    picolor	point_inner_color
-    piwidth	point_inner_width
-    
-    bocolor	bar_outer_color
-    bowidth	bar_outer_width
-    bicolor	bar_inner_color
-    biwidth	bar_inner_width
-
-=head2 Setting Styles
-
-Once B<write> has been called to update the postscript variables, the graphic environment must be set to use them.
-The GraphStyle resource provides a number of functions for this.
-
-=head3 line_inner
-
-Sets the colour, width and dash pattern for a line.
-
-=head3 line_outer
-
-Sets the colour, width and dash pattern for a line's edge.
-
-=head3 point_inner
-
-Sets the colour and width for a point.
-
-=head3 point_outer
-
-Sets the colour and width for a point's edge.
-
-=head3 bar_inner
-
-Sets the colour and width for a bar.
-
-=head3 bar_outer
-
-Sets the colour and width for a bar's edge.
-
-=head2 Drawing Functions
-
-The functions which draw the shapes all remove 'x y' from the stack.  They use a variable 'ppsize' which should be
-the total width of the shape.
-
-    make_plus
-    make_cross
-    make_dot
-    make_circle
-    make_square
-    make_diamond
-
-    
 =head1 BUGS
 
 Using the compound colours yellow, mauve and cyan with other colours can have unpredictable results.
@@ -1226,9 +1258,8 @@ Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::Graph::File>, L<PostScript::Graph::Paper>, L<PostScript::Graph::Key>, L<PostScript::Graph::XY>.
+L<PostScript::File>, L<PostScript::Graph::Paper>, L<PostScript::Graph::Key>, L<PostScript::Graph::XY>.
 
 =cut
 
-##############################################################################
 1;

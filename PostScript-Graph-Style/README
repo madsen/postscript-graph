@@ -27,11 +27,15 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-    PostScript::Graph::File
+    PostScript::File
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2002 Christopher P Willmot, all rights reserved.
-This module is published under the Perl Artistic licence, a copy of which may be
-found in the perl distribution or on http://www.perl.org.
+Copyright (C) 2002 Christopher P Willmot.  All rights reserved.
+
+This work is published under the Artistic licence accompanying the Perl
+distribution which may be found at http://www.perl.org.  The existance of this
+work does not imply that it is fit for any purpose implied by the code or
+accompanying documentation.  There is no warranty whatsoever.  Use at your own
+risk.
 

@@ -3,15 +3,15 @@ use strict;
 use warnings;
 use Test;
 BEGIN { plan tests => 8 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 ok(1);
 use PostScript::Graph::Style;
 ok(1);
 
-my $gf = new PostScript::Graph::File();
+my $gf = new PostScript::File();
 ok($gf);
 
-my $seq = new StyleSequence;
+my $seq = new PostScript::Graph::Sequence;
 ok($seq);
 
 my $ops = {

@@ -6,5 +6,5 @@ README
 t/const.csv
 t/gs01simple.t
 t/gs02styles.t
-t/gs03const.pl
-t/gs04colour.pl
+t/gs03const.t
+t/gs04colour.t

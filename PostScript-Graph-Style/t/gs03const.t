@@ -4,7 +4,7 @@ use warnings;
 
 use Test;
 BEGIN { plan tests => 8 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 ok(1);
 use PostScript::Graph::Bar;
 ok(1);
@@ -24,14 +24,14 @@ my $bar = new PostScript::Graph::Bar(
 );
 ok(1);
 
-$bar->build_chart("const.csv");
+$bar->build_chart("t/const.csv");
 ok(1);
 
 my $name = "gs03const";
-$bar->output( $name );
+$bar->output( $name, "test-results" );
 ok(1);
-my $file = check_file( "$name.ps" );
+my $file = check_file( "$name.ps", "test-results" );
 ok($file);
 ok(-e $file);
-print "Inspect $name.ps for colours\n";
+print STDERR "\nInspect $file for colours\n";
 

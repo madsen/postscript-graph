@@ -1,4 +1,12 @@
-Revision history for Perl extension PostScript-GraphStyle-0.01.
+Revision history for Perl extension PostScript::Graph::Style.
+
+0.03  Sun Nov 10 10:16:08 GMT 2002
+	use PostScript::File
+	changed StyleSequence to PostScript::Graph::Sequence
+	outer 'color' option now 'use_color'
+	fixed 'previous_style' bug
+	added 'use_line' etc methods
+	'ps_functions' now a class function
 
 0.02  Sun Oct  6 11:24:28 GMT 2002
 	added StyleSequence

@@ -4,12 +4,12 @@ use warnings;
 
 use Test;
 BEGIN { plan tests => 23 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 ok(1);
 use PostScript::Graph::Style;
 ok(1);
 
-my $s1 = new StyleSequence;
+my $s1 = new PostScript::Graph::Sequence;
 ok($s1);
 $s1->setup( "gray",
     [ [ 1, 1, 0 ],    # yellow
@@ -27,7 +27,7 @@ my $opts = {
 	    },
 };
 
-my $gf = new PostScript::Graph::File();
+my $gf = new PostScript::File();
 ok($gf);
 
 my ($oldsid, $old);
