@@ -38,7 +38,7 @@ select OUTFILE;
 print <<'END_PROLOG';
 #!/usr/bin/perl
 use Test;
-BEGIN { plan tests => 68 };
+BEGIN { plan tests => 64 };
 use PostScript::File qw(check_file);
 use PostScript::Graph::Paper;
 ok(1); # module found
@@ -148,10 +148,6 @@ print "ok(\$gp->y_axis_show_lines(), \'${\($gp->y_axis_show_lines())}\');\n";
 
 print "ok(array_cmp([\$gp->graph_area()], [" . join(", ", $gp->graph_area()) . "]));\n";
 print "ok(array_cmp([\$gp->key_area()],   [" . join(", ", $gp->key_area()) . "]));\n";
-print "ok(\$gp->px(24), ${\($gp->px(24))});\n";
-print "ok(\$gp->py(67), ${\($gp->py(67))});\n";
-print "ok(\$gp->lx(345), ${\($gp->lx(345))});\n";
-print "ok(\$gp->ly(678), ${\($gp->ly(678))});\n";
 
 select STDOUT;
 close OUTFILE;

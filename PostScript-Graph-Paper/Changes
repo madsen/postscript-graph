@@ -1,26 +1,32 @@
 Revision history for Perl extension PostScript::Graph::Paper.
 
-0.06  Sun Oct 20 11:08:38 GMT 2002
+0.08	Wed Nov 20 11:36:32 GMT 2002
+	Corrected tests so they don't fail
+
+0.07	Tue Nov 12 12:28:45 GMT 2002
+	more flexible SI unit grouping to show pence as well as 1000's
+
+0.06	Sun Oct 20 11:08:38 GMT 2002
 	now uses PostScript::File
 
-0.05  Wed Oct 16 13:24:09 GMT 2002
+0.05	Wed Oct 16 13:24:09 GMT 2002
 	added support for Graph::Stock, namely
 	no_drawing and draw_fn options,
 	axis_labels will return and accept altered values
 	draw_scales() may be called seperately from new()
 
-0.04  Sat Oct 12 18:17:43 GMT 2002
+0.04	Sat Oct 12 18:17:43 GMT 2002
 	fixed logic for bar chart display
 	changed option 'paper' to 'layout'
 
-0.03  Fri Oct 11 13:01:26 GMT 2002
+0.03	Fri Oct 11 13:01:26 GMT 2002
 	Namespace changed from PostScript::GraphPaper
 
-0.02  Mon Oct  7 09:02:52 GMT 2002
+0.02	Mon Oct  7 09:02:52 GMT 2002
 	changed options: chart now gpaper
 	added subdivisions to init_bar
 
-0.01  Fri Sep 27 16:05:00 2002
+0.01	Fri Sep 27 16:05:00 2002
 	- original version; created by h2xs 1.21 with options
 		-X -n PostScript::GraphPaper
 

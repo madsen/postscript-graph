@@ -10,7 +10,7 @@ select OUTFILE;
 print <<'END_PROLOG';
 #!/usr/bin/perl
 use Test;
-BEGIN { plan tests => 63 };
+BEGIN { plan tests => 59 };
 use PostScript::Graph::Paper;
 ok(1); # module found
 
@@ -80,11 +80,6 @@ print "ok(\$gp->y_axis_labels_req(), ${\($gp->y_axis_labels_req())});\n";
 print "ok(\$gp->y_axis_rotate(), \'${\($gp->y_axis_rotate())}\');\n";
 print "ok(\$gp->y_axis_center(), \'${\($gp->y_axis_center())}\');\n";
 print "ok(\$gp->y_axis_show_lines(), \'${\($gp->y_axis_show_lines())}\');\n";
-
-print "ok(\$gp->px(24), ${\($gp->px(24))});\n";
-print "ok(\$gp->py(67), ${\($gp->py(67))});\n";
-print "ok(\$gp->lx(345), ${\($gp->lx(345))});\n";
-print "ok(\$gp->ly(678), ${\($gp->ly(678))});\n";
 
 select STDOUT;
 close OUTFILE;

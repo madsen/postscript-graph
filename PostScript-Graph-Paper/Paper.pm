@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use PostScript::File qw(check_file array_as_string str);
 
-our $VERSION = '0.06';
+our $VERSION = '0.08';
 
 # bit values for flags
 our $fl_bar    = 1;
@@ -11,8 +11,6 @@ our $fl_rotate = 2;
 our $fl_center = 4;
 our $fl_offset = 8;
 our $fl_show   = 16;
-
-### Introduction #############################################################
 
 =head1 NAME
 
@@ -314,7 +312,7 @@ PostScript::File object is created.
 
 =cut
 
-### Chart options ############################################################
+### Chart options
 
  sub layout_left_edge        { shift()->{ch}{left}; }
  sub layout_bottom_edge      { shift()->{ch}{bottom}; }
@@ -556,7 +554,7 @@ sub init_layout {
 } 
 # Internal method, intializing whole chart area
 
-### Axis options #############################################################
+### Axis options
 
  sub x_axis_color	    { color_as_array( shift()->{x}{color} ); }
  sub x_axis_low		    { shift()->{x}{llo}; }
@@ -564,6 +562,7 @@ sub init_layout {
  sub x_axis_width	    { shift()->{x}{width}; }
  sub x_axis_height	    { shift()->{x}{height}; }
  sub x_axis_label_gap	    { shift()->{x}{labelgap}; }
+ sub x_axis_si_shift	    { shift()->{x}{si}; }
  sub x_axis_smallest	    { shift()->{x}{smallest}; }
  sub x_axis_title	    { shift()->{x}{title}; }
  sub x_axis_font	    { shift()->{x}{font}; }
@@ -588,6 +587,7 @@ sub init_layout {
  sub y_axis_width	    { shift()->{y}{width}; }
  sub y_axis_height	    { shift()->{y}{height}; }
  sub y_axis_label_gap	    { shift()->{y}{labelgap}; }
+ sub y_axis_si_shift	    { shift()->{y}{si}; }
  sub y_axis_smallest	    { shift()->{y}{smallest}; }
  sub y_axis_title	    { shift()->{y}{title}; }
  sub y_axis_font	    { shift()->{y}{font}; }
@@ -749,6 +749,10 @@ provided, 0 otherwise)
 This is the smallest allowable gap between axis marks.  Setting this controls how many subdivisions the program
 generates.  It would be wise to set this as a multiple of C<layout_dots_per_inch>.  (Defaults to 3 dots)
 
+=head3 si_shift
+
+The number of 0's removed at a time when adjusting the axis labels, e.g. 3 for thousands, 2 for hundreds or 0 for
+no adjustment.  (Default: 3)
 
 =head3 axis_title
 
@@ -846,6 +850,7 @@ sub init_scale_options {
     $sc->{labelgap}  = defined($r->{label_gap})     ? $r->{label_gap}     : 30;	    # gap between labels
     $sc->{smallest}  = defined($r->{smallest})      ? $r->{smallest}      : 3 * 72/$ch->{dpi};	# 3 dots
     $sc->{title}     = defined($r->{title})         ? $r->{title}         : ($sc->{title} || "");
+    $sc->{si}        = defined($r->{si_shift})      ? $r->{si_shift}      : 3;
     
     my $x = ($axis eq "x");
     my $y = ($axis eq "y");
@@ -1030,11 +1035,14 @@ sub init_scale {
     
     ## calculate any SI adjustment to labels
     my $lhi10 = $sc->{lhi} != 0 ? log($sc->{lhi})/log(10) : 0;
-    my $si10 = (3 * int($lhi10/3));
+    my $si10 = $sc->{si} ? ($sc->{si} * int($lhi10/$sc->{si})) : 0;
     my $si = 10 ** $si10;
     if ($si != 1) {
 	$sc->{title} = "" unless (defined $sc->{title});
-	$sc->{title} .= " (in ${si}'s)";
+	my $groups = $si10/$sc->{si};
+	my $zeroes = '0' x $sc->{si};
+	my $extra  = $groups > 1 ? (' ' . "$zeroes " x ($groups-1)) : "";
+	$sc->{title} .= " (in 1$extra${zeroes}'s)";
     }
     
     ## now for the actual labels
@@ -1307,8 +1315,6 @@ sub color_as_array ($) {
     return $col;
 }
     
-### PostScript code ##########################################################
-
 =head1 POSTSCRIPT CODE
 
 There should be no reason to access this under normal use.  However, as the purpose of this module is to make
@@ -2201,7 +2207,7 @@ Very likely.  This is still alpha software and has only been tested in very pred
 
 =head1 AUTHOR
 
-Chris Willmot, chris@willmot.org.uk
+Chris Willmot, chris@willmot.co.uk
 
 =head1 SEE ALSO
 
@@ -2209,5 +2215,5 @@ L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Key>.
 
 =cut
 
-##############################################################################
+
 1;

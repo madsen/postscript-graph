@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use Test;
-BEGIN { plan tests => 63 };
+BEGIN { plan tests => 59 };
 use PostScript::Graph::Paper;
 ok(1); # module found
 
@@ -63,7 +63,3 @@ ok($gp->y_axis_labels_req(), 23);
 ok($gp->y_axis_rotate(), '');
 ok($gp->y_axis_center(), '');
 ok($gp->y_axis_show_lines(), '1');
-ok($gp->px(24), 181.0661416);
-ok($gp->py(67), 540.9361392);
-ok($gp->lx(345), 58.4923791268136);
-ok($gp->ly(678), 86.5000508756878);

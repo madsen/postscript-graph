@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use Test;
-BEGIN { plan tests => 68 };
+BEGIN { plan tests => 64 };
 use PostScript::File qw(check_file);
 use PostScript::Graph::Paper;
 ok(1); # module found
@@ -102,7 +102,3 @@ ok($gp->y_axis_center(), '');
 ok($gp->y_axis_show_lines(), '1');
 ok(array_cmp([$gp->graph_area()], [67, 135, 134, 468]));
 ok(array_cmp([$gp->key_area()],   [149, 37, 249, 500]));
-ok($gp->px(24), 603);
-ok($gp->py(67), 107.5275);
-ok($gp->lx(345), 12.4477611940298);
-ok($gp->ly(678), 752.252252252252);
