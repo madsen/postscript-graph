@@ -1,10 +1,10 @@
 package PostScript::Graph::Key;
 use strict;
 use warnings;
-use PostScript::Graph::File qw(str);
+use PostScript::File qw(str);
 use PostScript::Graph::Paper;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -12,13 +12,13 @@ PostScript::Graph::Key - a Key area for PostScript::Graph::Paper
 
 =head1 SYNOPSIS
 
-    use PostScript::Graph::File;
+    use PostScript::File;
     use PostScript::Graph::Key;
     use PostScript::Graph::Paper;
     
 =head2 Typical
 
-    my $ps = new PostScript::Graph::File;
+    my $ps = new PostScript::File;
     my @bbox = $psf->get_page_bounding_box();
 
     # Calculate variables from the graph data
@@ -173,7 +173,7 @@ All values are in PostScript native units (1/72 inch).
 
 =head3 file
 
-If C<graph_paper> is not given, this probably should be.  It is the PostScript::Graph::File object that holds the graph
+If C<graph_paper> is not given, this probably should be.  It is the PostScript::File object that holds the graph
 being constructed.  It is possible to specify this later, when calling B<add_key_item>.  (No default)
 
 =head3 background 
@@ -393,7 +393,7 @@ sub add_key_item {
     $label   = ""  unless (defined $label);
     $code    = ""  unless (defined $code);
     $o->{ps} = $ps if     (defined $ps);
-    die "No PostScript::Graph::File object to write to\nStopped" unless (ref($o->{ps}) eq "PostScript::Graph::File");
+    die "No PostScript::File object to write to\nStopped" unless (ref($o->{ps}) eq "PostScript::File");
     
     my $n   = $o->{current}++;
     my $col = int( $n/$o->{rows} );
@@ -428,7 +428,7 @@ Postscript code which draws the icon.
 
 =item C<psfile>
 
-The PostScript::Graph::File object the code will be written to.  If it was not given to B<new> as either C<file> or
+The PostScript::File object the code will be written to.  If it was not given to B<new> as either C<file> or
 C<graph_paper>, it must be given here.
 
 =back
@@ -498,7 +498,7 @@ Chris Willmot, chris@willmot.org.uk
 
 =head1 SEE ALSO
 
-L<PostScript::Graph::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Paper>.
+L<PostScript::File>, L<PostScript::Graph::Style>, L<PostScript::Graph::Paper>.
 
 =cut
 

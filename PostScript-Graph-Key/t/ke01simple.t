@@ -1,13 +1,13 @@
 use Test;
 BEGIN { plan tests => 12 };
-use PostScript::Graph::File qw(check_file);
+use PostScript::File qw(check_file);
 ok(1);
 use PostScript::Graph::Paper;
 ok(1);
 use PostScript::Graph::Key;
 ok(1);
 
-my $gf = new PostScript::Graph::File();
+my $gf = new PostScript::File();
 ok($gf);
 my $gk = new PostScript::Graph::Key(
 	max_height => 300,
@@ -19,14 +19,14 @@ ok($keyw);
 
 my $gp = new PostScript::Graph::Paper(
 	file => $gf,
-	paper => {
+	layout => {
 	    key_width => $keyw,
 	},
     );
 ok($gp);
 
-my $paper_keyw = $gp->paper_key_width();
-ok($paper_keyw, $keyw);
+my $layout_keyw = $gp->layout_key_width();
+ok($layout_keyw, $keyw);
 
 $gk->build_key( $gp );
 ok(1);

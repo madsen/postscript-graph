@@ -1,5 +1,7 @@
 Revision history for Perl extension PostScript::Graph::Key
 
+0.03  Sun Oct 20 11:24:20 GMT 2002
+	now uses PostScript::File
 
 0.02  Fri Oct 11 14:49:19 GMT 2002
 	Namespace changed from PostScript::GraphKey
