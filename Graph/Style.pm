@@ -1,8 +1,8 @@
 package PostScript::Graph::Style;
-our $VERSION = 1.01;
+our $VERSION = 1.02;
 use strict;
 use warnings;
-use PostScript::File 0.13 qw(str);
+use PostScript::File 1.00 qw(str);
 
 =head1 NAME
 
@@ -538,27 +538,28 @@ sub new {
     
     $o->{label}   = $opt->{label};						# for debugging
     $o->{rel}     = defined($opt->{changes_only}) ? $opt->{changes_only} : 1;	# 'don't set everything'
-    $o->{same}    = defined($opt->{bgnd_outline})         ? $opt->{bgnd_outline}         : 0;	# 'don't complement bgnd'
+    $o->{same}    = defined($opt->{bgnd_outline}) ? $opt->{bgnd_outline} : 0;	# 'don't complement bgnd'
     $o->{color}   = defined($opt->{use_color})    ? $opt->{use_color}    : 1;	# 'not monochrome'
     my $color     = $o->{color} ? [ $d->{red}, $d->{green}, $d->{blue} ] : $d->{gray};
    
     ## common options
     $color        = defined($opt->{color})        ? $opt->{color}        : $color;
     my $width     = defined($opt->{width})        ? $opt->{width}        : $d->{width};
+    my $dashes    = defined($opt->{dashes})       ? $opt->{dashes}       : $d->{dashes};
 
     ## line options
     my $li = $opt->{line};
     if ($li) {
 	my $lwidth    = defined($li->{width})         ? $li->{width}         : $width;
-	my $dashes    = defined($li->{dashes})        ? $li->{dashes}        : $d->{dashes};
+	my $ldashes   = defined($li->{dashes})        ? $li->{dashes}        : $dashes;
 	$o->{locolor} = defined($li->{outer_color})   ? $li->{outer_color}   : -1;
 	$o->{lowidth} = defined($li->{outer_width})   ? $li->{outer_width}   : 2 * $lwidth;
-	$o->{lostyle} = defined($li->{outer_dashes})  ? $li->{outer_dashes}  : $dashes;
+	$o->{lostyle} = defined($li->{outer_dashes})  ? $li->{outer_dashes}  : $ldashes;
 	
 	$o->{licolor} = defined($li->{color})         ? $li->{color}         : $color;
 	$o->{licolor} = defined($li->{inner_color})   ? $li->{inner_color}   : $o->{licolor};
 	$o->{liwidth} = defined($li->{inner_width})   ? $li->{inner_width}   : $lwidth;
-	$o->{listyle} = defined($li->{inner_dashes})  ? $li->{inner_dashes}  : $dashes;
+	$o->{listyle} = defined($li->{inner_dashes})  ? $li->{inner_dashes}  : $ldashes;
 	$o->{use_line} = 1;
     }
     
@@ -566,30 +567,36 @@ sub new {
     my $bl = $opt->{bar};
     if ($bl) {
 	my $bwidth    = defined($bl->{width})         ? $bl->{width}         : $width;
+	my $bdashes   = defined($bl->{dashes})        ? $bl->{dashes}        : [];
 	$o->{bocolor} = defined($bl->{outer_color})   ? $bl->{outer_color}   : -1;
 	$o->{bowidth} = defined($bl->{outer_width})   ? $bl->{outer_width}   : 2 * $bwidth;
+	$o->{bostyle} = defined($li->{outer_dashes})  ? $li->{outer_dashes}  : $bdashes;
 	
 	$o->{bicolor} = defined($bl->{color})         ? $bl->{color}         : $color;
 	$o->{bicolor} = defined($bl->{inner_color})   ? $bl->{inner_color}   : $o->{bicolor};
 	$o->{biwidth} = defined($bl->{inner_width})   ? $bl->{inner_width}   : $bwidth;
+	$o->{bistyle} = defined($li->{inner_dashes})  ? $li->{inner_dashes}  : $bdashes;
 	$o->{use_bar} = 1;
     }
 
     ## point options
     my $pp = $opt->{point};
     if ($pp) {
-	my $pwidth     = defined($pp->{width})         ? $pp->{width}         : $width;
-	$o->{ppsize}   = defined($pp->{size})          ? $pp->{size}          : $d->{size};
-	$o->{ppdx}     = defined($pp->{x_offset})      ? $pp->{x_offset}      : 0;
-	$o->{ppdy}     = defined($pp->{y_offset})      ? $pp->{y_offset}      : 0;
-	$o->{ppshape}  = defined($pp->{shape})         ? $pp->{shape}         : $d->{shape};
+	my $pwidth    = defined($pp->{width})         ? $pp->{width}         : $width;
+	my $pdashes   = defined($bl->{dashes})        ? $bl->{dashes}        : [];
+	$o->{ppsize}  = defined($pp->{size})          ? $pp->{size}          : $d->{size};
+	$o->{ppdx}    = defined($pp->{x_offset})      ? $pp->{x_offset}      : 0;
+	$o->{ppdy}    = defined($pp->{y_offset})      ? $pp->{y_offset}      : 0;
+	$o->{ppshape} = defined($pp->{shape})         ? $pp->{shape}         : $d->{shape};
 	
 	$o->{pocolor} = defined($pp->{outer_color})   ? $pp->{outer_color}   : -1;
 	$o->{powidth} = defined($pp->{outer_width})   ? $pp->{outer_width}   : 2 * $pwidth;
+	$o->{postyle} = defined($pp->{outer_dashes})  ? $pp->{outer_dashes}  : $pdashes;
 	
 	$o->{picolor} = defined($pp->{color})         ? $pp->{color}         : $color;
 	$o->{picolor} = defined($pp->{inner_color})   ? $pp->{inner_color}   : $o->{picolor};
 	$o->{piwidth} = defined($pp->{inner_width})   ? $pp->{inner_width}   : $pwidth;
+	$o->{pistyle} = defined($pp->{inner_dashes})  ? $pp->{inner_dashes}  : $pdashes;
 	$o->{use_point} = 1;
     }
 
@@ -859,12 +866,16 @@ sub write {
     $settings .= $o->number_value('ppdy')    if ($o->{use_point});
     $settings .= $o->number_value('powidth') if ($o->{use_point});
     $settings .= $o->array_value ('pocolor') if ($o->{use_point});
+    $settings .= $o->array_value ('postyle') if ($o->{use_point});
     $settings .= $o->array_value ('picolor') if ($o->{use_point});
     $settings .= $o->number_value('piwidth') if ($o->{use_point});
+    $settings .= $o->array_value ('pistyle') if ($o->{use_point});
     $settings .= $o->array_value ('bocolor') if ($o->{use_bar});
     $settings .= $o->number_value('bowidth') if ($o->{use_bar});
+    $settings .= $o->array_value ('bostyle') if ($o->{use_bar});
     $settings .= $o->array_value ('bicolor') if ($o->{use_bar});
     $settings .= $o->number_value('biwidth') if ($o->{use_bar});
+    $settings .= $o->array_value ('bistyle') if ($o->{use_bar});
     $settings .= "end\n";
 
     $ps->add_to_page( $settings );
@@ -1150,8 +1161,8 @@ sub ps_functions {
 	    % _ => _
 	    /bar_outer {
 		gpaperdict begin gstyledict begin
-		    pocolor gpapercolor
-		    powidth setlinewidth
+		    bocolor gpapercolor
+		    bowidth setlinewidth
 		    [ ] 0 setdash
 		end end
 	    } bind def
@@ -1159,8 +1170,8 @@ sub ps_functions {
 	    % _ => _
 	    /bar_inner {
 		gpaperdict begin gstyledict begin
-		    picolor gpapercolor
-		    piwidth setlinewidth
+		    bicolor gpapercolor
+		    biwidth setlinewidth
 		    [ ] 0 setdash
 		end end
 	    } bind def

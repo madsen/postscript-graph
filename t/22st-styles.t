@@ -11,7 +11,7 @@ ok(1);
 
 my $s1 = new PostScript::Graph::Sequence;
 ok($s1);
-$s1->setup( "gray",
+$s1->setup( "color",
     [ [ 1, 1, 0 ],    # yellow
       [ 0, 1, 0 ],    # green
       [ 0, 1, 1 ], ]  # cyan
@@ -20,7 +20,7 @@ ok(1);
 
 my $opts = {
 	    sequence => $s1,
-	    auto  => [qw(gray dashes)],
+	    auto  => [qw(color dashes)],
 	    color => 0,
 	    line  => {
 		width  => 2,

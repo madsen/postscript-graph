@@ -1,3 +1,12 @@
+1.02	Fri Sep 19 15:06:44 GMT 2003
+	Key:	fixed brackets bug in text strings
+		fixed spacing bug between entries
+		line wrapping now uses seperate methods
+		entries now multi-line units
+	Style:	fixed dashed bar outline bug
+		added dashes control to bar and point
+		fixed bar_outer/inner PostScript bug
+
 1.00	Wed May 14 12:53:51 GMT 2003
 	Changed licencing terms
 	Key:	Promoted to beta

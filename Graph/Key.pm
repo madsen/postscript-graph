@@ -1,14 +1,13 @@
 package PostScript::Graph::Key;
-our $VERSION = 1.01;
+our $VERSION = 1.03;
 use strict;
 use warnings;
 use Exporter;
 use Carp;
-use PostScript::File	     0.13 qw(str);
-use PostScript::Graph::Paper 0.11;
+use PostScript::File	     1.00 qw(str);
+use PostScript::Graph::Paper 1.00;
 
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(split_lines);
 
 =head1 NAME
 
@@ -175,11 +174,14 @@ sub new {
     $o->{ocolor}   = defined($opt->{outline_color})      ? $opt->{outline_color}       : 0;
     $o->{owidth}   = defined($opt->{outline_width})      ? $opt->{outline_width}       : 0.75;
     
-    $o->{height}   = $opt->{max_height};
-    $o->{items}	   = $opt->{item_labels};
-    $o->{nitems}   = defined($o->{items}) ? $o->wrapped_items() : $opt->{num_items};
-    croak "Option 'max_height' must be given\nStopped" unless (defined $o->{height});
-    croak "Option 'num_items' must be given\nStopped" unless (defined $o->{nitems});
+    $o->{items}	   = $opt->{item_labels};			# used by wrapped_items()
+    $o->{wrapchrs} = $o->{twidth}/($o->{tsize}*$o->{ratio});	# used by wrapped_items()
+    if (defined $o->{items}) {
+	$o->{nlines} = $o->wrapped_items;
+    } else {
+	croak "Option 'num_items' must be given\nStopped" unless $opt->{num_items};
+	$o->{nlines} = [ (1) x $opt->{num_items} ];
+    }
     
     $o->{spc}      = defined($opt->{spacing})            ? $opt->{spacing}             : 4;
     $o->{vspc}     = defined($opt->{vert_spacing})       ? $opt->{vert_spacing}        : $o->{spc};
@@ -189,28 +191,52 @@ sub new {
     
     $o->{dx}       = $o->{hspc} + $o->{dxicon} + $o->{hspc} + $o->{twidth} + $o->{hspc};
     $o->{dyicon}   = ($o->{dyicon} > $o->{tsize} ? $o->{dyicon} : $o->{tsize});	       # dyicon always >= tsize
-    $o->{dy}       = 2 * $o->{vspc} + $o->{dyicon};				       # space above each item
-    # TODO
-    # {dy} is the same for all lines, whether with line icon, point icon or text only.
-    # When wrapping invoked, wrapped_items() should return an array of lines,
-    # the icon size only counting if > TOTAL of all lines.
-    #
-    $o->{tmargin}  = ($o->{tsize} * 2 + $o->{vspc});
+    my $isize      = $o->{dyicon} + 2 * $o->{vspc};
+
+    croak "Option 'max_height' must be given\nStopped" unless defined $opt->{max_height};
+    $o->{height}   = $opt->{max_height};
+    $o->{tmargin}  = $o->{hsize} + 3 * $o->{vspc};
     my $margins    = $o->{tmargin} + 2 * $o->{vspc};
     my $height     = $o->{height} - $margins;
     $height        = 1 unless $height > 0;
-    if ($o->{nitems} * $o->{dy} <= $height) {
-	$o->{rows} = $o->{nitems} || 1;
-	$o->{cols} = 1;
-    } else {
-	$o->{rows} = int( $height/$o->{dy} ) || 1;
-	my $cols   = $o->{nitems}/$o->{rows};
-	$o->{cols} = $cols > int($cols) ? int($cols)+1 : int($cols);
+    
+    # distribute items amongst columns
+    my $sofar  = 0;
+    my $column = 0;
+    my $max    = 0;
+    my (@cols, @rowp, @rowh);
+    for (my $i = 0; $i <= $#{$o->{nlines}}; $i++) {
+	$rowp[$i] = $sofar;
+	my $itemh = 2* $o->{vspc} + $o->{nlines}[$i] * ($o->{tsize} + $o->{vspc});
+	#warn "$i nlines=",$o->{nlines}[$i],", itemh=$itemh, rowp=",$rowp[$i],"\n";
+	$sofar   += $itemh;
+	if ($sofar >= $height) {
+	    $sofar -= $itemh;
+	    $max    = $sofar if $sofar > $max;
+	    $column++;
+	    $rowp[$i] = 0;
+	    $sofar    = $itemh;
+	}
+	$cols[$i] = $column;
+	if ($isize > $itemh) {
+	    $rowh[$i] = $isize;
+	    $sofar += ($isize - $itemh);
+	} else {
+	    $rowh[$i] = $itemh;
+	}
+	$max = $sofar if $sofar > $max;
+	#warn "$i column=$column, diff=$diff ($isize - $itemh), sofar=$sofar, max=$max\n"
     }
-    $o->{height}   = $margins + $o->{rows} * $o->{dy};
-    $o->{start}    = $margins;
-    $o->{width}    = $o->{hspc} + $o->{cols} * $o->{dx};
-    $o->{current}  = 0;	    # item to be shown
+	
+    #warn "max=$max, column=$column\n";
+    $o->{height}   = $margins + $max;
+    $o->{start}    = $o->{height} - $o->{tmargin} - 4 * $o->{vspc};
+    $o->{width}    = $o->{hspc} + ($column+1) * $o->{dx};
+
+    # for add_key_item()
+    $o->{cols}     = \@cols;	# the column number for each item
+    $o->{rowp}     = \@rowp;	# offset from top of column to top of item
+    $o->{current}  = 0;		# item to be shown
     
     return $o;
 }
@@ -399,27 +425,26 @@ before B<add_key_item>.
 
 sub add_key_item {
     my ($o, $label, $code, $ps) = @_;
+    #warn "add_key_item($label)\n";
     $label   = ""  unless (defined $label);
     $code    = ""  unless (defined $code);
     $o->{ps} = $ps if     (defined $ps);
     die "No PostScript::File object to write to\nStopped" unless (ref($o->{ps}) eq "PostScript::File");
     
-    my @lines = $o->{items} ? $o->wrapped_items(ucfirst $label) : ucfirst($label);
+    my @lines = $o->{items} ? $o->split_lines(ucfirst $label) : ucfirst($label);
     my $tsize = $o->{tsize} + $o->{vspc};
     
     my $n   = $o->{current};
-    my $col = int( $n/$o->{rows} );
-    my $end = int( ($n+$#lines)/$o->{rows} );
-    my $row;
-    if ($col == $end) {
-	$row = $n - $col * $o->{rows};
-    } else {
-	$row = 0;
-	$col = $end;
-    }
+    my $col = $o->{cols}[$n] || 0;
+    my $row = $o->{rowp}[$n] || 0;
     my $kdx = $col * $o->{dx};
-    my $kdy = $o->{height} - $o->{tmargin} - ($row+1) * $o->{dy};
-    # The gstyledict kludge is to ensure the point is shown centrally in the icon.
+    my $kdy = $o->{start} - $row;
+    #
+    # TODO Centre the icon box within the text entry.
+    # $o->{rowh} holds the necessary height, but it needs putting into PostScript
+    #
+    
+    # The gstyledict kludge involving tppdy/tppdx is to ensure the point is shown centrally in the icon.
     # This may not be what is always wanted, but was put in to accomodate arrows (without lines)
     $o->{ps}->add_to_page( <<END_ITEM );
 	graphkeydict begin
@@ -438,9 +463,11 @@ sub add_key_item {
 	    movetotext
 END_ITEM
     foreach my $line (@lines) {
+	$line =~ s/[(]/\\\(/g;
+	$line =~ s/[)]/\\\)/g;
 	$o->{ps}->add_to_page("($line) show $tsize movedown\n");
-	$o->{current}++;
     }
+    $o->{current}++;
     $o->{ps}->add_to_page("end\n");
 }
 
@@ -501,15 +528,17 @@ sub wrapped_items {
     my @split;
     my $nchars = $o->{twidth}/($o->{tsize}*$o->{ratio});
     foreach my $text (@items) {
-	push @split, split_lines($text, $nchars);
+	push @split, scalar $o->split_lines($text, $nchars);
     }
-    return @split;
+    return \@split;
 }
 # Fit labels in $o->{items} array so they fit within $o->{twidth}
 # Returning number of lines required in total.
 
+
 sub split_lines {
-    my ($text, $nchars) = @_;
+    my ($o, $text, $nchars) = @_;
+    $nchars = $o->{wrapchrs} unless defined $nchars;
     my @split_text;
     while ($text) {
 	my ($left, $right);
@@ -526,6 +555,14 @@ sub split_lines {
 	$text = $right;
     }
     return @split_text;
+}
+
+sub sum {
+    my $total = 0;
+    foreach my $item (@_) {
+	$total += $item;
+    }
+    return $total;
 }
 
 sub ps_functions {

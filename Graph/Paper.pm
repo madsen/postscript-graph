@@ -2,7 +2,7 @@ package PostScript::Graph::Paper;
 our $VERSION = 1.01;
 use strict;
 use warnings;
-use PostScript::File 0.13 qw(check_file array_as_string str);
+use PostScript::File 1.00 qw(check_file array_as_string str);
 
 # bit values for flags
 our $fl_bar    = 1;
