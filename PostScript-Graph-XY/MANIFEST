@@ -1,0 +1,9 @@
+Changes
+Makefile.PL
+MANIFEST
+XY.pm
+README
+t/xy01ohms.t
+t/xy02lines.t
+t/xy03styles.t
+t/ohms.csv

@@ -1,0 +1,17 @@
+Revision history for Perl module PostScript::Graph::XY
+
+0.03  Fri Oct 11 19:45:31 GMT 2002
+	Namespace change from PostScript::XYChart
+	Support alterations in Style interface
+
+0.02  Mon Oct  7 09:00:38 GMT 2002
+	Options changed: chart->gpaper
+	    removed scatter
+	    added chart=>show_points
+	    added chart=>show_lines
+	build_chart now accepts line and file data
+
+0.01  Fri Oct  4 18:26:34 2002
+	- original version; created by h2xs 1.21 with options
+		-X -n PostScript-XYChart-0.01
+
