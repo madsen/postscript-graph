@@ -649,10 +649,6 @@ END_BAR
 	    unless ($keydone) {
 		my $colour = str($style->bar_inner_color());
 		$o->{gk}->add_key_item( $series->[1], <<END_KEY_ITEM ) if ($o->{key});
-		    % /kix0 kix0 bowidth 2 div add def
-		    % /kiy0 kiy0 bowidth 2 div add def
-		    % /kix1 kix1 bowidth 2 div sub def
-		    % /kiy1 kiy1 bowidth 2 div sub def
 		    kix0 kiy0 kix1 kiy1 bocolor bowidth drawbox
 		    kix0 kiy0 kix1 kiy1 bicolor bicolor biwidth fillbox
 END_KEY_ITEM

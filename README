@@ -13,6 +13,10 @@ and three support modules
     PostScript::Graph::Key
     PostScript::Graph::Style
 
+These support modules have had enough use under Finance::Shares::Chart to
+merit their promotion to beta status.  Bar and XY remain insufficiently
+exercised.  Note that the range of use is small.  Beta status indicates that the
+interface has settled; the code is still likely to be buggy.
 
 User Level Modules
 ==================
@@ -88,9 +92,8 @@ Copyright and Licence
 
 Copyright (C) 2002 Christopher P Willmot.  All rights reserved.
 
-This work is published under the Artistic licence accompanying the Perl
-distribution which may be found at http://www.perl.org.  The existance of this
-work does not imply that it is fit for any purpose implied by the code or
-accompanying documentation.  There is no warranty whatsoever.  Use at your own
-risk.
+This work is published under the same terms as Perl itself, which may be found
+at http://www.perl.org.  The existance of this work does not imply that it is
+fit for any purpose implied by the code or accompanying documentation.  There is
+no warranty whatsoever.  Use at your own risk.
 

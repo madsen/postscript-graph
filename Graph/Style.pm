@@ -1,5 +1,5 @@
 package PostScript::Graph::Style;
-our $VERSION = 0.08;
+our $VERSION = 1.00;
 use strict;
 use warnings;
 use PostScript::File 0.13 qw(str);
@@ -332,7 +332,7 @@ sub output_row {
 	}
     }
     $r->{pstyle} = $o->{pstyle};
-    #print "count = " . join(", ", @{$o->{count}}) . "\n";
+    #warn "count = " . join(", ", @{$o->{count}}) . "\n";
     #warn "rgb=[$r->{red},$r->{green},$r->{blue}] ($r->{gray}) c=",str($r->{color})," '$r->{shape}'($r->{size}) w=$r->{width}, ",str($r->{dashes}),"\n";
     return $r;
 }
@@ -500,6 +500,8 @@ our $default_seq;
 
 package PostScript::Graph::Style;
 
+our $default_style_id = 1;
+
 =head1 CONSTRUCTOR
 
 B<new( [options] )>
@@ -526,6 +528,7 @@ sub new {
     $o->{none}    = (defined($opt->{auto}) and ref($opt->{auto}) ne "ARRAY");
     if ($o->{none}) {
 	$d        = PostScript::Graph::Sequence::defaults();
+	$o->{id}  = $default_style_id++;
     } else {
 	$seq      = defined($opt->{sequence})     ? $opt->{sequence}     : PostScript::Graph::Sequence::default();
 	$d        = $seq->create($opt->{auto});
@@ -580,7 +583,6 @@ sub new {
 	$o->{ppdx}     = defined($pp->{x_offset})      ? $pp->{x_offset}      : 0;
 	$o->{ppdy}     = defined($pp->{y_offset})      ? $pp->{y_offset}      : 0;
 	$o->{ppshape}  = defined($pp->{shape})         ? $pp->{shape}         : $d->{shape};
-	#warn "Style:587 $o->{ppshape} = ", ($pp->{shape} ? $pp->{shape} : '<undef>'), " default=$d->{shape}\n";
 	
 	$o->{pocolor} = defined($pp->{outer_color})   ? $pp->{outer_color}   : -1;
 	$o->{powidth} = defined($pp->{outer_width})   ? $pp->{outer_width}   : 2 * $pwidth;
@@ -799,8 +801,8 @@ sub number_value {
     my $res = "/$name ". $o->{$name} . " def\n";
     my $prev = $o->{prev};
     if ($o->{rel} and $prev) {
-	my $new = $o->{$name} || '';
-	my $old = $prev->{$name} || '';
+	my $new = defined($o->{$name}) ? $o->{$name} : 'undef';
+	my $old = defined($prev->{$name}) ? $prev->{$name} : 'undef';
 	$res = '' if ($new eq $old);
     }
     return $res;

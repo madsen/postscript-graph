@@ -1,5 +1,5 @@
 package PostScript::Graph::Key;
-our $VERSION = 0.11;
+our $VERSION = 1.00;
 use strict;
 use warnings;
 use Exporter;

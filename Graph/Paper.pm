@@ -1,5 +1,5 @@
 package PostScript::Graph::Paper;
-our $VERSION = 0.11;
+our $VERSION = 1.00;
 use strict;
 use warnings;
 use PostScript::File 0.13 qw(check_file array_as_string str);
@@ -943,12 +943,13 @@ sub init_scale {
     if ($sc->{llo} < 0 and $sc->{lhi} > 0) {
 	my $negrange = 0 - $sc->{llo};
 	my $posrange = $sc->{lhi} - 0;
+	my $physrange = $sc->{phi} - $sc->{plo};
 	if ($posrange > $negrange) {
 	    $sclrange = $posrange;
-	    $scprange = $sc->{phi} - 0;
+	    $scprange = $physrange * $posrange/($posrange + $negrange);
 	} else {
 	    $sclrange = $negrange;
-	    $scprange = 0 - $sc->{plo};
+	    $scprange = $physrange * $negrange/($posrange + $negrange);
 	}
     } else {
 	$sclrange = $sc->{lhi} - $sc->{llo};
@@ -956,6 +957,7 @@ sub init_scale {
     }
     $sc->{labsreq} = int($scprange/$sc->{labelgap});
     $sc->{labsreq} = defined($r->{labels_req}) ? $r->{labels_req} : $sc->{labsreq}; # allow override
+    #warn "$axis, labsreq=$sc->{labsreq} labelgap=$sc->{labelgap} scprange=$scprange\n";
     $sc->{labsreq} = 1 if $sc->{labsreq} < 1;
 
     ## calculate number of major marks to use
