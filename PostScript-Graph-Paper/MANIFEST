@@ -1,0 +1,10 @@
+Changes
+GraphPaper.pm
+Makefile.PL
+MANIFEST
+README
+t/01defaults.pl
+t/01defaults.t
+t/02barchart.pl
+t/02barchart.t
+
