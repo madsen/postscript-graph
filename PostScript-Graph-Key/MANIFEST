@@ -1,5 +1,7 @@
 Changes
 Makefile.PL
 MANIFEST
-GraphKey.pm
+Key.pm
 README
+t/ke01simple.t
+

@@ -1,9 +1,12 @@
-PostScript/GraphKey version 0.01
-================================
+PostScript::Graph::Key version 0.02
+===================================
 
-This module creates a key panel to accompany PostScript::GraphPaper.  It is not
-expected to be used independently.  See one of the PostScript::...Chart modules
-for a top-level object.
+This module creates a key panel to accompany PostScript::Graph::Paper.  It is not
+expected to be used independently.  See one of these  modules for a top-level object.
+
+    PostScript::Graph::XY
+    PostScript::Graph::Bar
+    PostScript::Graph::Stock
 
 INSTALLATION
 
@@ -11,16 +14,15 @@ To install this module type the following:
 
    perl Makefile.PL
    make
+   make test
    make install
-
-There are currently no installation tests.
 
 DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  PostScript::File 0.04
-  PostScript::GraphPaper
+  PostScript::Graph::File
+  PostScript::Graph::Paper
 
 COPYRIGHT AND LICENCE
 
