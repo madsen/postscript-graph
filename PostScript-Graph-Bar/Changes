@@ -1,0 +1,12 @@
+Revision history for Perl extension PostScript::Graph::Bar.
+
+0.02  Sun Oct 20 11:42:22 GMT 2002
+	Documentation added
+	misc bug fixes
+	now uses PostScript::File
+	tests added
+
+0.01  Fri Oct 11 11:50:07 2002
+	- original version; created by h2xs 1.21 with options
+		-X -n PostScript::Graph::Bar
+

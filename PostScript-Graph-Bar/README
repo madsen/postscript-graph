@@ -1,0 +1,50 @@
+PostScript::Graph::Bar version 0.02
+===================================
+
+This module creates a graph from either a file or an array of points.  The graph
+is written to a postscript file, either for printing directly or in EPS format
+for inclusion in another file.
+
+It would be used as follows:
+    (a) Create a PostScript::Graph::Bar object using the defaults or any of over
+	140 options.
+    
+    (b) Use the series_from_file() method to read graph data from a CSV file.
+    
+    (c) Call build_chart() to assemble the postscript code which draws the graph.
+    
+    (d) Use the output() method to save the postscript file.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  PostScript::File
+  PostScript::Graph::Style
+  PostScript::Graph::Key
+  PostScript::Graph::Paper
+
+SEE ALSO
+
+  PostScript::Graph::XY
+  PostScript::Graph::Stock
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2002 Christopher P Willmot.  All rights reserved.
+
+This work is published under the Artistic licence accompanying the Perl
+distribution which may be found at http://www.perl.org.  The existance of this
+work does not imply that it is fit for any purpose implied by the code or
+accompanying documentation.  There is no warranty whatsoever.  Use at your own
+risk.
+
