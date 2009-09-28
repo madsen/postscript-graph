@@ -7,6 +7,11 @@
 		added dashes control to bar and point
 		fixed bar_outer/inner PostScript bug
 
+1.01	Wed Aug 27 18:45:55 GMT 2003
+	Key:	Fixed bug in new()
+	Paper:	Fixed bug in init_bars()
+	Style:	Renamed 'same' to 'bgnd_outline'
+
 1.00	Wed May 14 12:53:51 GMT 2003
 	Changed licencing terms
 	Key:	Promoted to beta
@@ -88,7 +93,7 @@ Revision history for Perl extension PostScript::Graph::Style.
 0.02	Sun Oct  6 11:24:28 GMT 2002
 	added StyleSequence
 	now only sets changes rather than all settings
-	
+
 0.01	Fri Oct  4 18:26:12 2002
 	- original version; created by h2xs 1.21 with options
 		-X -n PostScript-GraphStyle-0.01
